@@ -1,105 +1,51 @@
-# Test Module Waveshare USB to RS485
+# Zaptec-Solis Home Automation
 
-Programme Node.js pour tester la communication avec un module Waveshare USB to RS485 sous Windows.
+Node.js program to control a Zaptec charging station based on information from a Solis inverter via RS485 communication.
 
 ## Installation
 
-1. Installer Node.js (https://nodejs.org/)
-2. Installer les dépendances :
+1. Install Node.js (https://nodejs.org/)
+2. Install dependencies:
    ```cmd
    npm install
    ```
 
-## Utilisation
+## Hardware Configuration
 
-### Test basique RS485
-
-```cmd
-# Test sur COM3 à 9600 bauds
-node rs485-test.js
-
-# Test personnalisé
-node rs485-test.js --port=COM1 --baud=115200
-```
-
-### Test Modbus RTU
-
-```cmd
-# Test Modbus sur COM3, slave ID 1
-node modbus-test.js
-
-# Test personnalisé
-node modbus-test.js --port=COM1 --baud=115200 --slave=2
-```
+- **Inverter**: Solis S5-EH1P5K-L
+- **RS485 Module**: Waveshare USB to RS485 connected to COM2
+- **Controller**: Raspberry Pi 4 connected to the Waveshare module
+- **Communication**: Modbus RTU protocol for reading inverter data
 
 ## Configuration
 
-### Paramètres supportés
+### Communication Parameters
 
-- `--port=COMx` : Port série (défaut: COM3)
-- `--baud=xxxx` : Vitesse de transmission (défaut: 9600)
-- `--slave=x` : ID de l'esclave Modbus (défaut: 1)
-
-### Paramètres série par défaut
-
+- Port: COM2
+- Baud rate: 9600
 - Data bits: 8
 - Stop bits: 1
 - Parity: None
 - Flow control: None
 
-## Fonctionnalités
+## Features
 
-### RS485Tester
-- Liste des ports série disponibles
-- Connexion/déconnexion
-- Envoi de données hexadécimales
-- Envoi de texte
-- Réception et affichage des données
+- Read solar production data from Solis S5-EH1P5K-L inverter via RS485
+- Control Zaptec charging station based on available solar power
+- Automated charging optimization for home energy management
 
-### ModbusRTUTester
-- Lecture de registres d'entrée (fonction 0x04)
-- Lecture de registres de maintien (fonction 0x03)
-- Écriture de registre simple (fonction 0x06)
-- Calcul automatique du CRC
-- Gestion des timeouts
+## Troubleshooting
 
-## Exemple d'utilisation programmatique
+### Connection Issues
+- Verify the Waveshare USB to RS485 module is connected to COM2
+- Check Windows Device Manager to confirm the port assignment
+- Ensure no other applications are using COM2
 
-```javascript
-const RS485Tester = require('./rs485-test');
+### Communication Problems
+- Verify RS485 wiring (A, B, GND) between Waveshare module and Solis inverter
+- Check Solis S5-EH1P5K-L inverter power and Modbus settings
+- Confirm baud rate (9600) and communication parameters match inverter configuration
 
-async function test() {
-    const tester = new RS485Tester('COM3', { baudRate: 9600 });
-    
-    try {
-        await tester.connect();
-        await tester.sendText('Hello World!');
-        await tester.sendData('01 03 00 00 00 01 84 0A');
-    } finally {
-        await tester.disconnect();
-    }
-}
-```
-
-## Dépannage
-
-### Port non trouvé
-- Vérifier que le module est connecté
-- Utiliser le Gestionnaire de périphériques Windows pour identifier le port COM
-- Essayer différents ports (COM1, COM2, COM3, etc.)
-
-### Pas de réponse
-- Vérifier les paramètres de communication (baud rate, parity, etc.)
-- Vérifier le câblage RS485 (A, B, GND)
-- Vérifier l'alimentation du dispositif esclave
-- Augmenter le timeout de réponse
-
-### Erreur de permission
-- Fermer tous les programmes utilisant le port série
-- Redémarrer en tant qu'administrateur si nécessaire
-
-## Structure des fichiers
-
-- `rs485-test.js` : Programme principal de test RS485
-- `modbus-test.js` : Tests spécifiques Modbus RTU  
-- `package.json` : Configuration du projet Node.js
+### Permission Errors
+- Close all applications using the COM2 port
+- Run as administrator if necessary
