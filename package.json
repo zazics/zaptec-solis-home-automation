@@ -1,0 +1,33 @@
+{
+  "name": "waveshare-rs485-test",
+  "version": "1.0.0",
+  "description": "Programme de test pour module Waveshare USB to RS485",
+  "main": "rs485-test.js",
+  "scripts": {
+    "start": "node rs485-test.js",
+    "start:ts": "ts-node solis-test.ts",
+    "start:solis": "ts-node solis-example.ts",
+    "build": "tsc",
+    "test": "node rs485-test.js --test",
+    "test:ts": "ts-node solis-test.ts --test"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.10",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "rs485",
+    "waveshare",
+    "serial",
+    "test",
+    "typescript",
+    "solis",
+    "modbus"
+  ],
+  "author": "",
+  "license": "MIT"
+}
