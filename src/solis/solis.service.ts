@@ -97,7 +97,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   private options: Required<SolisConnectionOptions>;
 
   // Delay between Modbus commands (in ms)
-  private static readonly COMMAND_DELAY = 200;
+  private static readonly COMMAND_DELAY = 100;
 
   // Solis register mapping (Modbus addresses)
   private static readonly REGISTERS = {

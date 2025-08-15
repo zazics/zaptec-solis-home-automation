@@ -53,7 +53,7 @@ export class HomeAutomationService {
   }
 
   /**
-   * Tâche automatique qui s'exécute toutes les minutes pour optimiser la charge
+   * Automated task that runs every minute to optimize charging
    */
   @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
@@ -64,16 +64,16 @@ export class HomeAutomationService {
     try {
       this.logger.debug('Running automation cycle...');
 
-      // Récupère les données de l'onduleur Solis
+      // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
 
-      // Récupère le statut de la borne Zaptec
+      // Retrieve Zaptec charging station status
       const zaptecStatus = await this.zaptecService.getChargerStatus();
 
-      // Calcule la puissance disponible pour la charge
+      // Calculate available power for charging
       const availablePower = this.calculateAvailablePower(solisData);
 
-      // Exécute la logique d'automatisation selon le mode
+      // Execute automation logic according to mode
       await this.executeAutomationLogic(availablePower, solisData, zaptecStatus);
 
       this.lastAutomationRun = new Date();
@@ -83,32 +83,32 @@ export class HomeAutomationService {
   }
 
   /**
-   * Calcule la puissance disponible pour la charge basée sur les données Solis
+   * Calculates available power for charging based on Solis data
    */
   private calculateAvailablePower(solisData: SolisInverterData): number {
     const solarProduction = solisData.pv.totalPowerDC;
     const houseConsumption = solisData.house.consumption;
-    const gridPower = solisData.grid.activePower; // + = injection, - = consommation
-    const batteryPower = solisData.battery.power; // + = décharge, - = charge
+    const gridPower = solisData.grid.activePower; // + = injection, - = consumption
+    const batteryPower = solisData.battery.power; // + = discharge, - = charge
 
-    // Calcule l'excédent disponible
-    // Si on injecte sur le réseau (gridPower > 0), cette puissance peut être utilisée pour charger
+    // Calculate available surplus
+    // If injecting to grid (gridPower > 0), this power can be used for charging
     let availablePower = 0;
 
     if (gridPower > 0) {
-      // On injecte sur le réseau, on peut utiliser cette puissance pour charger
+      // Injecting to grid, can use this power for charging
       availablePower = gridPower - this.config.priorityLoadReserve;
     } else if (solarProduction > houseConsumption) {
-      // Production > consommation, surplus disponible
+      // Production > consumption, surplus available
       availablePower = solarProduction - houseConsumption - this.config.priorityLoadReserve;
     }
 
-    // S'assurer que la valeur est positive
+    // Ensure value is positive
     return Math.max(0, availablePower);
   }
 
   /**
-   * Exécute la logique d'automatisation selon le mode configuré
+   * Executes automation logic according to configured mode
    */
   private async executeAutomationLogic(
     availablePower: number,
@@ -125,18 +125,18 @@ export class HomeAutomationService {
         break;
 
       case 'manual':
-        // Mode manuel - pas d'automatisation
+        // Manual mode - no automation
         this.logger.debug('Manual mode - no automatic control');
         break;
     }
   }
 
   /**
-   * Mode surplus : charge seulement quand il y a un excédent solaire
+   * Surplus mode: charge only when there is solar surplus
    */
   private async executeSurplusMode(availablePower: number, zaptecStatus: ZaptecStatus): Promise<void> {
     if (availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
-      // Assez de surplus et véhicule connecté
+      // Enough surplus and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
       await this.zaptecService.optimizeCharging(chargingPower);
       this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`);
@@ -145,37 +145,37 @@ export class HomeAutomationService {
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Surplus mode: Stopping charging - insufficient surplus');
     } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
-      // Véhicule déconnecté mais charge active
+      // Vehicle disconnected but charging active
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Surplus mode: Stopping charging - vehicle disconnected');
     }
   }
 
   /**
-   * Mode programmé : charge pendant les heures définies si surplus disponible
+   * Scheduled mode: charge during defined hours if surplus available
    */
   private async executeScheduledMode(availablePower: number, zaptecStatus: ZaptecStatus): Promise<void> {
     const currentHour = new Date().getHours().toString();
     const isScheduledHour = this.config.scheduledHours.includes(currentHour);
 
     if (isScheduledHour && availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
-      // Heure programmée, surplus disponible et véhicule connecté
+      // Scheduled hour, surplus available and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
       await this.zaptecService.optimizeCharging(chargingPower);
       this.logger.log(`Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`);
     } else if (!isScheduledHour && zaptecStatus.charging) {
-      // Hors créneau programmé
+      // Outside scheduled time slot
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Scheduled mode: Stopping charging - outside scheduled hours');
     } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
-      // Véhicule déconnecté
+      // Vehicle disconnected
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Scheduled mode: Stopping charging - vehicle disconnected');
     }
   }
 
   /**
-   * Récupère le statut complet de l'automatisation
+   * Retrieves complete automation status
    */
   public async getAutomationStatus(): Promise<AutomationStatus> {
     try {
@@ -203,7 +203,7 @@ export class HomeAutomationService {
   }
 
   /**
-   * Met à jour la configuration de l'automatisation
+   * Updates automation configuration
    */
   public async updateConfig(newConfig: Partial<AutomationConfig>): Promise<AutomationConfig> {
     this.config = { ...this.config, ...newConfig };
@@ -212,14 +212,14 @@ export class HomeAutomationService {
   }
 
   /**
-   * Active/désactive l'automatisation
+   * Enables/disables automation
    */
   public async setAutomationEnabled(enabled: boolean): Promise<void> {
     this.automationEnabled = enabled;
     this.logger.log(`Automation ${enabled ? 'enabled' : 'disabled'}`);
 
     if (!enabled) {
-      // Si désactivé, arrêter la charge si elle est active
+      // If disabled, stop charging if active
       try {
         const zaptecStatus = await this.zaptecService.getChargerStatus();
         if (zaptecStatus.charging) {
@@ -233,14 +233,14 @@ export class HomeAutomationService {
   }
 
   /**
-   * Récupère la configuration actuelle
+   * Retrieves current configuration
    */
   public getConfig(): AutomationConfig {
     return { ...this.config };
   }
 
   /**
-   * Force une exécution manuelle de l'automatisation
+   * Forces manual execution of automation
    */
   public async runManualAutomation(): Promise<void> {
     this.logger.log('Manual automation run requested');
