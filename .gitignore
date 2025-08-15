@@ -67,3 +67,5 @@ test-results/
 coverage/
 
 .env
+.claude/
+CLAUDE.md
