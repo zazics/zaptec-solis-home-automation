@@ -403,21 +403,33 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    * Retrieves inverter status
    */
   public async getStatus(): Promise<{ code: number; text: string }> {
-    const statusRegs = await this.readRegisters(SolisService.REGISTERS.STATUS);
-    const statusCode = statusRegs[0] || 0;
+    try {
+      // Try primary status register first
+      const statusRegs = await this.readRegisters(SolisService.REGISTERS.STATUS);
+      const statusCode = statusRegs[0] || 0;
 
-    const statusMap: { [key: number]: string } = {
-      0: 'Standby',
-      1: 'Checking',
-      2: 'Normal',
-      3: 'Fault',
-      4: 'Permanent Fault',
-    };
+      this.logger.debug(
+        `Status register ${SolisService.REGISTERS.STATUS}: ${statusCode} (0x${statusCode.toString(16)})`,
+      );
 
-    return {
-      code: statusCode,
-      text: statusMap[statusCode] || 'Unknown',
-    };
+      // Updated status mapping based on Solis documentation
+      const statusMap: { [key: number]: string } = {
+        0: 'Waiting',
+        1: 'Normal',
+        2: 'Normal',
+        3: 'Alarm',
+        4: 'Fault',
+        8: 'Fault',
+      };
+
+      return {
+        code: statusCode,
+        text: statusMap[statusCode] || `Unknown (${statusCode}, 0x${statusCode.toString(16)})`,
+      };
+    } catch (error) {
+      this.logger.error('Failed to read status registers:', error);
+      throw error;
+    }
   }
 
   /**

@@ -1,0 +1,56 @@
+# MongoDB Installation with Docker for Raspberry Pi
+# Copy and paste these commands one by one in your terminal
+
+# 1. Update system
+sudo apt update && sudo apt upgrade -y
+
+# 2. Install Docker (if not already installed)
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# 3. Add your user to docker group
+sudo usermod -aG docker $USER
+
+# 4. Logout and login again, or run:
+newgrp docker
+
+# 5. Test Docker installation
+docker --version
+
+# 6. Create MongoDB data directory on host
+sudo mkdir -p /home/dietpi/mongodb-data
+sudo chown $USER:$USER /home/dietpi/mongodb-data
+
+# 7. Run MongoDB container with persistent storage (older version for ARM compatibility)
+docker run -d \
+  --name solis-mongodb \
+  --restart unless-stopped \
+  -p 27017:27017 \
+  -v /home/dietpi/mongodb-data:/data/db \
+  -e MONGO_INITDB_DATABASE=solis-automation \
+  mongo:3.6
+
+# 8. Check if container is running
+docker ps
+
+# 9. Test MongoDB connection
+docker exec solis-mongodb mongo --eval 'db.runCommand({ connectionStatus: 1 })'
+
+# 10. View MongoDB logs
+docker logs solis-mongodb
+
+# 11. Add to your .env file:
+# MONGODB_URI=mongodb://localhost:27017/solis-automation
+
+# Useful Docker MongoDB commands:
+# docker start solis-mongodb       # Start MongoDB container
+# docker stop solis-mongodb        # Stop MongoDB container
+# docker restart solis-mongodb     # Restart MongoDB container
+# docker logs -f solis-mongodb     # Follow logs
+# docker exec -it solis-mongodb mongo  # Connect to MongoDB shell
+
+# Optional: Create a backup script
+# docker exec solis-mongodb mongodump --out /data/db/backup
+
+# To connect from your Solis app, the container will be accessible on:
+# localhost:27017 (same as native MongoDB installation)

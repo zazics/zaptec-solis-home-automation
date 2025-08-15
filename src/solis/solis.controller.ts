@@ -1,5 +1,6 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Query } from '@nestjs/common';
 import { SolisService, SolisPVData, SolisACData, SolisHouseData, SolisGridData, SolisBatteryData, SolisInverterData } from './solis.service';
+import { SolisDataService } from './solis-data.service';
 
 /**
  * Interface for connection test response
@@ -23,7 +24,10 @@ export interface InverterStatusResponse {
  */
 @Controller('solis')
 export class SolisController {
-  constructor(private readonly solisService: SolisService) {}
+  constructor(
+    private readonly solisService: SolisService,
+    private readonly solisDataService: SolisDataService,
+  ) {}
 
   /**
    * Retrieves the current status of the Solis inverter
@@ -152,6 +156,66 @@ export class SolisController {
     } catch (error) {
       throw new HttpException(
         'Connection test failed',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  /**
+   * Retrieves recent historical data from MongoDB
+   * @param {string} limit - Number of records to retrieve (default: 100)
+   * @returns {Promise<any[]>} Array of historical data points
+   */
+  @Get('history')
+  public async getHistory(@Query('limit') limit: string = '100'): Promise<any[]> {
+    try {
+      const numLimit = parseInt(limit, 10);
+      if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
+        throw new HttpException(
+          'Invalid limit parameter. Must be between 1 and 1000.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      return await this.solisDataService.getRecentData(numLimit);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to get historical data',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  /**
+   * Retrieves daily statistics for a specific date
+   * @param {string} date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns {Promise<any>} Daily energy statistics
+   */
+  @Get('stats/daily')
+  public async getDailyStats(@Query('date') date?: string): Promise<any> {
+    try {
+      let targetDate = new Date();
+      
+      if (date) {
+        targetDate = new Date(date);
+        if (isNaN(targetDate.getTime())) {
+          throw new HttpException(
+            'Invalid date format. Use YYYY-MM-DD.',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      return await this.solisDataService.getDailyStats(targetDate);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        'Failed to get daily statistics',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }

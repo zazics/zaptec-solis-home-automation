@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SolisService, SolisInverterData } from '../solis/solis.service';
+import { SolisDataService } from '../solis/solis-data.service';
 import { ZaptecService, ZaptecStatus } from '../zaptec/zaptec.service';
 
 export interface AutomationStatus {
@@ -38,12 +39,13 @@ export class HomeAutomationService {
   constructor(
     private readonly configService: ConfigService,
     private readonly solisService: SolisService,
+    private readonly solisDataService: SolisDataService,
     private readonly zaptecService: ZaptecService,
   ) {
     this.config = {
       enabled: this.configService.get<boolean>('AUTOMATION_ENABLED', true),
       mode: this.configService.get<'surplus' | 'scheduled' | 'manual'>('AUTOMATION_MODE', 'surplus'),
-      minSurplusPower: this.configService.get<number>('MIN_SURPLUS_POWER', 1500), // 1.5kW minimum
+      minSurplusPower: this.configService.get<number>('MIN_SURPLUS_POWER', 500), // 500W minimum
       maxChargingPower: this.configService.get<number>('MAX_CHARGING_POWER', 7360), // 32A * 230V
       scheduledHours: this.configService.get<string>('SCHEDULED_HOURS', '10,11,12,13,14,15,16').split(','),
       priorityLoadReserve: this.configService.get<number>('PRIORITY_LOAD_RESERVE', 500), // 500W reserve
@@ -66,6 +68,15 @@ export class HomeAutomationService {
 
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
+
+      // Store Solis data in MongoDB for historical analysis
+      try {
+        await this.solisDataService.saveData(solisData);
+        this.logger.debug('Solis data saved to MongoDB');
+      } catch (mongoError) {
+        this.logger.warn('Failed to save Solis data to MongoDB:', mongoError);
+        // Continue with automation even if MongoDB save fails
+      }
 
       // Retrieve Zaptec charging station status
       const zaptecStatus = await this.zaptecService.getChargerStatus();

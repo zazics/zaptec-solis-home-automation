@@ -1,0 +1,65 @@
+# MongoDB Docker Container Debug Commands
+# Use these commands to diagnose and fix the restart issue
+
+# 1. Check container status and restart count
+docker ps -a | grep solis-mongodb
+
+# 2. View detailed container logs
+docker logs solis-mongodb
+
+# 3. View recent logs with timestamps
+docker logs -t --tail 50 solis-mongodb
+
+# 4. Stop the problematic container
+docker stop solis-mongodb
+docker rm solis-mongodb
+
+# 5. Check available disk space (common issue)
+df -h
+
+# 6. Check if directory permissions are correct
+ls -la /home/dietpi/mongodb-data
+
+# 7. Fix permissions if needed
+sudo chown -R 999:999 /home/dietpi/mongodb-data
+
+# 8. Try running MongoDB with a different approach - minimal container first
+docker run -d \
+  --name solis-mongodb-test \
+  -p 27017:27017 \
+  mongo:4.4 --nojournal --smallfiles
+
+# 9. If that works, stop it and try with persistent storage
+docker stop solis-mongodb-test
+docker rm solis-mongodb-test
+
+# 10. Run with proper MongoDB user and reduced memory
+docker run -d \
+  --name solis-mongodb \
+  --restart unless-stopped \
+  -p 27017:27017 \
+  -v /home/dietpi/mongodb-data:/data/db \
+  -e MONGO_INITDB_DATABASE=solis-automation \
+  --user 999:999 \
+  mongo:4.4 --wiredTigerCacheSizeGB 0.5 --nojournal
+
+# 11. Alternative: Use older MongoDB version for better ARM compatibility
+docker run -d \
+  --name solis-mongodb \
+  --restart unless-stopped \
+  -p 27017:27017 \
+  -v /home/dietpi/mongodb-data:/data/db \
+  mongo:3.6 --smallfiles --nojournal
+
+# 12. Check container is running properly
+docker ps
+docker logs solis-mongodb
+
+# 13. Test connection
+docker exec solis-mongodb mongo --eval 'db.runCommand({ connectionStatus: 1 })'
+
+# Common issues and solutions:
+# - Insufficient disk space: Clean up with 'docker system prune'
+# - Wrong permissions: Use 'sudo chown -R 999:999 /home/dietpi/mongodb-data'
+# - Memory issues: Add --nojournal and --smallfiles flags
+# - Architecture issues: Try mongo:3.6 instead of mongo:4.4
