@@ -68,4 +68,5 @@ coverage/
 
 .env
 .claude/
+.claude/settings.local.json
 CLAUDE.md
