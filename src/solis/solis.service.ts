@@ -1,10 +1,10 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SerialPort } from "serialport";
-import { ModbusRTU, ModbusResponse, ModbusFunctionCode } from '../common/modbus-rtu';
+import { SerialPort } from 'serialport';
+import { ModbusRTU, ModbusFunctionCode } from '../common/modbus-rtu';
 
 /**
- * Interface pour les données des panneaux solaires PV
+ * Interface for solar PV panel data
  */
 export interface SolisPVData {
   pv1: {
@@ -21,7 +21,7 @@ export interface SolisPVData {
 }
 
 /**
- * Interface pour les données de puissance AC
+ * Interface for AC power data
  */
 export interface SolisACData {
   totalPowerAC: number;
@@ -30,7 +30,7 @@ export interface SolisACData {
 }
 
 /**
- * Interface pour les données de la maison
+ * Interface for house consumption data
  */
 export interface SolisHouseData {
   consumption: number;
@@ -38,7 +38,7 @@ export interface SolisHouseData {
 }
 
 /**
- * Interface pour les données du réseau électrique
+ * Interface for electrical grid data
  */
 export interface SolisGridData {
   activePower: number;
@@ -48,7 +48,7 @@ export interface SolisGridData {
 }
 
 /**
- * Interface pour les données de la batterie
+ * Interface for battery data
  */
 export interface SolisBatteryData {
   power: number;
@@ -58,7 +58,7 @@ export interface SolisBatteryData {
 }
 
 /**
- * Interface pour les données complètes de l'onduleur Solis
+ * Interface for complete Solis inverter data
  */
 export interface SolisInverterData {
   status: {
@@ -74,13 +74,13 @@ export interface SolisInverterData {
 }
 
 /**
- * Options de configuration pour la connexion Solis
+ * Configuration options for Solis connection
  */
 export interface SolisConnectionOptions {
   baudRate?: number;
   dataBits?: 5 | 6 | 7 | 8;
   stopBits?: 1 | 1.5 | 2;
-  parity?: "none" | "even" | "mark" | "odd" | "space";
+  parity?: 'none' | 'even' | 'mark' | 'odd' | 'space';
   slaveId?: number;
   responseTimeout?: number;
   retryCount?: number;
@@ -92,19 +92,19 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SolisService.name);
   private port: SerialPort | null = null;
   private isConnected: boolean = false;
-  
+
   private portName: string;
   private options: Required<SolisConnectionOptions>;
-  
-  // Délai entre les commandes Modbus (en ms)
+
+  // Delay between Modbus commands (in ms)
   private static readonly COMMAND_DELAY = 200;
 
-  // Mappage des registres Solis (adresses Modbus)
+  // Solis register mapping (Modbus addresses)
   private static readonly REGISTERS = {
-    // Statut et informations générales
+    // Status and general information
     STATUS: 33095,
 
-    // Données PV (panneaux solaires)
+    // PV data (solar panels)
     PV1_VOLTAGE: 33049,
     PV1_CURRENT: 33050,
     PV2_VOLTAGE: 33051,
@@ -115,26 +115,26 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     PV4_CURRENT: 33056,
     PV_TOTAL_POWER: 33057,
 
-    // Données AC
+    // AC data
     AC_TOTAL_POWER: 33079,
     TEMPERATURE: 33093,
 
-    // Données maison
+    // House data
     HOUSE_CONSUMPTION: 33147,
     BACKUP_CONSUMPTION: 33148,
     HOUSE_ENERGY_TOTAL: 33177,
 
-    // Données réseau
+    // Grid data
     GRID_ACTIVE_POWER: 33130,
     INVERTER_AC_POWER: 33151,
     GRID_IMPORTED_ENERGY: 33169,
     GRID_EXPORTED_ENERGY: 33173,
 
-    // Données batterie
+    // Battery data
     BATTERY_POWER: 33149,
     BATTERY_SOC: 33139,
     BATTERY_VOLTAGE: 33133,
-    BATTERY_CURRENT: 33134
+    BATTERY_CURRENT: 33134,
   };
 
   constructor(private readonly configService: ConfigService) {
@@ -147,11 +147,11 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       slaveId: this.configService.get<number>('SOLIS_SLAVE_ID', 1),
       responseTimeout: this.configService.get<number>('SOLIS_RESPONSE_TIMEOUT', 2000),
       retryCount: this.configService.get<number>('SOLIS_RETRY_COUNT', 3),
-      retryDelay: this.configService.get<number>('SOLIS_RETRY_DELAY', 500)
+      retryDelay: this.configService.get<number>('SOLIS_RETRY_DELAY', 500),
     };
   }
 
-  async onModuleInit() {
+  public async onModuleInit(): Promise<void> {
     this.logger.log('Initializing Solis inverter connection...');
     try {
       await this.connect();
@@ -161,15 +161,15 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy() {
+  public async onModuleDestroy(): Promise<void> {
     this.logger.log('Disconnecting from Solis inverter...');
     await this.disconnect();
   }
 
   /**
-   * Établit la connexion avec l'onduleur Solis
+   * Establishes connection with the Solis inverter
    */
-  async connect(): Promise<void> {
+  public async connect(): Promise<void> {
     if (this.isConnected) return;
 
     this.port = new SerialPort({
@@ -177,17 +177,17 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       baudRate: this.options.baudRate,
       dataBits: this.options.dataBits,
       stopBits: this.options.stopBits,
-      parity: this.options.parity
+      parity: this.options.parity,
     });
 
     return new Promise((resolve, reject) => {
-      this.port?.on("open", () => {
+      this.port?.on('open', () => {
         this.isConnected = true;
         this.logger.log(`Connected to Solis inverter on ${this.portName}`);
         resolve();
       });
 
-      this.port?.on("error", (err: Error) => {
+      this.port?.on('error', (err: Error) => {
         this.logger.error('Serial port error:', err);
         reject(err);
       });
@@ -195,9 +195,9 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Ferme la connexion avec l'onduleur
+   * Closes the connection with the inverter
    */
-  async disconnect(): Promise<void> {
+  public async disconnect(): Promise<void> {
     if (this.port?.isOpen) {
       return new Promise((resolve) => {
         this.port?.close(() => {
@@ -210,29 +210,34 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Lit un ou plusieurs registres Modbus
+   * Reads one or more Modbus registers
    */
   private async readRegisters(startAddr: number, quantity: number = 1): Promise<number[]> {
     if (!this.isConnected || !this.port) {
-      throw new Error("Non connecté à l'onduleur");
+      throw new Error('Not connected to inverter');
     }
 
-    const frame = ModbusRTU.createReadFrame(this.options.slaveId, ModbusFunctionCode.READ_INPUT_REGISTERS, startAddr, quantity);
+    const frame = ModbusRTU.createReadFrame(
+      this.options.slaveId,
+      ModbusFunctionCode.READ_INPUT_REGISTERS,
+      startAddr,
+      quantity,
+    );
 
     return new Promise((resolve, reject) => {
       let responseData = Buffer.alloc(0);
       let timeout: NodeJS.Timeout;
 
-      const onData = (data: Buffer) => {
+      const onData = (data: Buffer): void => {
         responseData = Buffer.concat([responseData, data]);
         clearTimeout(timeout);
 
         timeout = setTimeout(() => {
-          this.port?.removeListener("data", onData);
+          this.port?.removeListener('data', onData);
 
           const response = ModbusRTU.parseResponse(responseData);
           if (!response || response.error) {
-            reject(new Error(response?.error || "Réponse invalide"));
+            reject(new Error(response?.error || 'Invalid response'));
             return;
           }
 
@@ -240,21 +245,21 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
             const registers = ModbusRTU.parseRegisters(response.data);
             resolve(registers);
           } else {
-            reject(new Error("Aucune donnée reçue"));
+            reject(new Error('No data received'));
           }
         }, 200);
       };
 
-      this.port?.on("data", onData);
+      this.port?.on('data', onData);
 
       timeout = setTimeout(() => {
-        this.port?.removeListener("data", onData);
-        reject(new Error("Timeout"));
+        this.port?.removeListener('data', onData);
+        reject(new Error('Timeout'));
       }, this.options.responseTimeout);
 
       this.port?.write(frame, (err) => {
         if (err) {
-          this.port?.removeListener("data", onData);
+          this.port?.removeListener('data', onData);
           clearTimeout(timeout);
           reject(err);
         }
@@ -263,9 +268,9 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Récupère les données des panneaux solaires PV
+   * Retrieves solar PV panel data
    */
-  async getPVData(): Promise<SolisPVData> {
+  public async getPVData(): Promise<SolisPVData> {
     const totalPowerRegs = await this.readRegisters(SolisService.REGISTERS.PV_TOTAL_POWER, 2);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -287,29 +292,27 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     const pv2A = (pv2Current[0] || 0) / 10;
 
     const totalPowerDC =
-      totalPowerRegs.length >= 2
-        ? (totalPowerRegs[0]! << 16) | totalPowerRegs[1]!
-        : totalPowerRegs[0] || 0;
+      totalPowerRegs.length >= 2 ? (totalPowerRegs[0]! << 16) | totalPowerRegs[1]! : totalPowerRegs[0] || 0;
 
     return {
       pv1: {
         voltage: pv1V,
         current: pv1A,
-        power: pv1V * pv1A
+        power: pv1V * pv1A,
       },
       pv2: {
         voltage: pv2V,
         current: pv2A,
-        power: pv2V * pv2A
+        power: pv2V * pv2A,
       },
-      totalPowerDC
+      totalPowerDC,
     };
   }
 
   /**
-   * Récupère les données de puissance AC
+   * Retrieves AC power data
    */
-  async getACData(): Promise<SolisACData> {
+  public async getACData(): Promise<SolisACData> {
     const powerRegs = await this.readRegisters(SolisService.REGISTERS.AC_TOTAL_POWER);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -319,14 +322,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     return {
       totalPowerAC: ((powerRegs[0] || 0) / 100) * 1000,
       frequency: 50,
-      temperature: (tempRegs[0] || 0) / 10
+      temperature: (tempRegs[0] || 0) / 10,
     };
   }
 
   /**
-   * Récupère les données de consommation de la maison
+   * Retrieves house consumption data
    */
-  async getHouseData(): Promise<SolisHouseData> {
+  public async getHouseData(): Promise<SolisHouseData> {
     const consumption = await this.readRegisters(SolisService.REGISTERS.HOUSE_CONSUMPTION);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -335,14 +338,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
     return {
       consumption: consumption[0] || 0,
-      backupConsumption: backupConsumption[0] || 0
+      backupConsumption: backupConsumption[0] || 0,
     };
   }
 
   /**
-   * Récupère les données du réseau électrique
+   * Retrieves electrical grid data
    */
-  async getGridData(): Promise<SolisGridData> {
+  public async getGridData(): Promise<SolisGridData> {
     const activePowerRegs = await this.readRegisters(SolisService.REGISTERS.GRID_ACTIVE_POWER, 2);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -357,21 +360,23 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
     const activePower = activePowerRegs.length >= 2 ? (activePowerRegs[0]! << 16) | activePowerRegs[1]! : 0;
     const inverterPower = inverterPowerRegs.length >= 2 ? (inverterPowerRegs[0]! << 16) | inverterPowerRegs[1]! : 0;
-    const importedEnergy = importedEnergyRegs.length >= 2 ? ((importedEnergyRegs[0]! << 16) | importedEnergyRegs[1]!) / 1000 : 0;
-    const exportedEnergy = exportedEnergyRegs.length >= 2 ? ((exportedEnergyRegs[0]! << 16) | exportedEnergyRegs[1]!) / 1000 : 0;
+    const importedEnergy =
+      importedEnergyRegs.length >= 2 ? ((importedEnergyRegs[0]! << 16) | importedEnergyRegs[1]!) / 1000 : 0;
+    const exportedEnergy =
+      exportedEnergyRegs.length >= 2 ? ((exportedEnergyRegs[0]! << 16) | exportedEnergyRegs[1]!) / 1000 : 0;
 
     return {
       activePower,
       inverterPower,
       importedEnergyTotal: importedEnergy,
-      exportedEnergyTotal: exportedEnergy
+      exportedEnergyTotal: exportedEnergy,
     };
   }
 
   /**
-   * Récupère les données de la batterie
+   * Retrieves battery data
    */
-  async getBatteryData(): Promise<SolisBatteryData> {
+  public async getBatteryData(): Promise<SolisBatteryData> {
     const batteryPowerRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_POWER, 2);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -390,35 +395,35 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       power: batteryPower,
       soc: socRegs[0] || 0,
       voltage: (voltageRegs[0] || 0) / 10,
-      current: (currentRegs[0] || 0) / 10
+      current: (currentRegs[0] || 0) / 10,
     };
   }
 
   /**
-   * Récupère le statut de l'onduleur
+   * Retrieves inverter status
    */
-  async getStatus(): Promise<{ code: number; text: string }> {
+  public async getStatus(): Promise<{ code: number; text: string }> {
     const statusRegs = await this.readRegisters(SolisService.REGISTERS.STATUS);
     const statusCode = statusRegs[0] || 0;
 
     const statusMap: { [key: number]: string } = {
-      0: "Standby",
-      1: "Checking",
-      2: "Normal",
-      3: "Fault",
-      4: "Permanent Fault"
+      0: 'Standby',
+      1: 'Checking',
+      2: 'Normal',
+      3: 'Fault',
+      4: 'Permanent Fault',
     };
 
     return {
       code: statusCode,
-      text: statusMap[statusCode] || "Unknown"
+      text: statusMap[statusCode] || 'Unknown',
     };
   }
 
   /**
-   * Récupère toutes les données de l'onduleur en une seule fois
+   * Retrieves all inverter data at once
    */
-  async getAllData(): Promise<SolisInverterData> {
+  public async getAllData(): Promise<SolisInverterData> {
     const status = await this.getStatus();
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
@@ -444,14 +449,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       ac,
       house,
       grid,
-      battery
+      battery,
     };
   }
 
   /**
-   * Test de connectivité simple
+   * Simple connectivity test
    */
-  async testConnection(): Promise<boolean> {
+  public async testConnection(): Promise<boolean> {
     try {
       await this.getStatus();
       return true;

@@ -1,61 +1,97 @@
 import { Controller, Get, Post, Put, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { HomeAutomationService, AutomationConfig } from './home-automation.service';
+import { HomeAutomationService, AutomationConfig, AutomationStatus } from './home-automation.service';
 
+/**
+ * Interface for configuration update response
+ */
+export interface ConfigUpdateResponse {
+  success: boolean;
+  config: AutomationConfig;
+  timestamp: string;
+}
+
+/**
+ * Interface for automation action response
+ */
+export interface AutomationActionResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Interface for dashboard data response
+ */
+export interface DashboardResponse {
+  status: AutomationStatus;
+  config: AutomationConfig;
+  summary: {
+    systemStatus: 'active' | 'inactive';
+    currentMode: 'surplus' | 'scheduled' | 'manual';
+    solarEfficiency: number;
+    chargingEfficiency: number;
+  };
+  timestamp: string;
+}
+
+/**
+ * Controller for managing home automation system
+ * Provides REST API endpoints for controlling and monitoring the automation logic
+ * that coordinates between solar production and EV charging
+ */
 @Controller('automation')
 export class HomeAutomationController {
   constructor(private readonly homeAutomationService: HomeAutomationService) {}
 
+  /**
+   * Retrieves the current status of the automation system
+   * @returns {Promise<AutomationStatus>} Current automation status including solar production, consumption, and charging state
+   */
   @Get('status')
-  async getStatus() {
+  public async getStatus(): Promise<AutomationStatus> {
     try {
       return await this.homeAutomationService.getAutomationStatus();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get automation status',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get automation status', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
+  /**
+   * Retrieves the current automation configuration
+   * @returns {Promise<AutomationConfig>} Current automation settings and parameters
+   */
   @Get('config')
-  async getConfig() {
+  public async getConfig(): Promise<AutomationConfig> {
     try {
       return this.homeAutomationService.getConfig();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get automation config',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to get automation config', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
+  /**
+   * Updates the automation configuration with new settings
+   * @param {Partial<AutomationConfig>} config - Partial configuration object with settings to update
+   * @returns {Promise<ConfigUpdateResponse>} Updated configuration and operation result
+   */
   @Put('config')
-  async updateConfig(@Body() config: Partial<AutomationConfig>) {
+  public async updateConfig(@Body() config: Partial<AutomationConfig>): Promise<ConfigUpdateResponse> {
     try {
       // Validation basique
       if (config.minSurplusPower !== undefined && config.minSurplusPower < 0) {
-        throw new HttpException(
-          'minSurplusPower must be positive',
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new HttpException('minSurplusPower must be positive', HttpStatus.BAD_REQUEST);
       }
 
       if (config.maxChargingPower !== undefined && config.maxChargingPower < 0) {
-        throw new HttpException(
-          'maxChargingPower must be positive',
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new HttpException('maxChargingPower must be positive', HttpStatus.BAD_REQUEST);
       }
 
       if (config.mode !== undefined && !['surplus', 'scheduled', 'manual'].includes(config.mode)) {
-        throw new HttpException(
-          'mode must be one of: surplus, scheduled, manual',
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new HttpException('mode must be one of: surplus, scheduled, manual', HttpStatus.BAD_REQUEST);
       }
 
       const updatedConfig = await this.homeAutomationService.updateConfig(config);
-      
+
       return {
         success: true,
         config: updatedConfig,
@@ -65,15 +101,16 @@ export class HomeAutomationController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException(
-        'Failed to update automation config',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to update automation config', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
+  /**
+   * Enables the automation system
+   * @returns {Promise<AutomationActionResponse>} Operation result with success status and message
+   */
   @Post('enable')
-  async enableAutomation() {
+  public async enableAutomation(): Promise<AutomationActionResponse> {
     try {
       await this.homeAutomationService.setAutomationEnabled(true);
       return {
@@ -82,15 +119,16 @@ export class HomeAutomationController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        'Failed to enable automation',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to enable automation', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
+  /**
+   * Disables the automation system
+   * @returns {Promise<AutomationActionResponse>} Operation result with success status and message
+   */
   @Post('disable')
-  async disableAutomation() {
+  public async disableAutomation(): Promise<AutomationActionResponse> {
     try {
       await this.homeAutomationService.setAutomationEnabled(false);
       return {
@@ -99,15 +137,16 @@ export class HomeAutomationController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        'Failed to disable automation',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to disable automation', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
+  /**
+   * Manually triggers a single automation cycle
+   * @returns {Promise<AutomationActionResponse>} Operation result with success status and message
+   */
   @Post('run')
-  async runManualAutomation() {
+  public async runManualAutomation(): Promise<AutomationActionResponse> {
     try {
       await this.homeAutomationService.runManualAutomation();
       return {
@@ -116,15 +155,16 @@ export class HomeAutomationController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        'Failed to run manual automation',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to run manual automation', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
+  /**
+   * Retrieves comprehensive dashboard data including status, config, and summary metrics
+   * @returns {Promise<DashboardResponse>} Complete dashboard data with efficiency metrics and system overview
+   */
   @Get('dashboard')
-  async getDashboard() {
+  public async getDashboard(): Promise<DashboardResponse> {
     try {
       const status = await this.homeAutomationService.getAutomationStatus();
       const config = this.homeAutomationService.getConfig();
@@ -135,20 +175,16 @@ export class HomeAutomationController {
         summary: {
           systemStatus: status.enabled ? 'active' : 'inactive',
           currentMode: config.mode,
-          solarEfficiency: status.solarProduction > 0 
-            ? Math.round((status.availableForCharging / status.solarProduction) * 100) 
-            : 0,
-          chargingEfficiency: status.chargingStatus.active 
-            ? Math.round((status.chargingStatus.power / status.availableForCharging) * 100) 
+          solarEfficiency:
+            status.solarProduction > 0 ? Math.round((status.availableForCharging / status.solarProduction) * 100) : 0,
+          chargingEfficiency: status.chargingStatus.active
+            ? Math.round((status.chargingStatus.power / status.availableForCharging) * 100)
             : 0,
         },
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        'Failed to get dashboard data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get dashboard data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

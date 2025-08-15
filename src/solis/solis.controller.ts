@@ -1,12 +1,36 @@
 import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
-import { SolisService } from './solis.service';
+import { SolisService, SolisPVData, SolisACData, SolisHouseData, SolisGridData, SolisBatteryData, SolisInverterData } from './solis.service';
 
+/**
+ * Interface for connection test response
+ */
+export interface ConnectionTestResponse {
+  connected: boolean;
+  timestamp: string;
+}
+
+/**
+ * Interface for inverter status response
+ */
+export interface InverterStatusResponse {
+  code: number;
+  text: string;
+}
+
+/**
+ * Controller for managing Solis solar inverter operations
+ * Provides REST API endpoints for retrieving inverter data via RS485/Modbus communication
+ */
 @Controller('solis')
 export class SolisController {
   constructor(private readonly solisService: SolisService) {}
 
+  /**
+   * Retrieves the current status of the Solis inverter
+   * @returns {Promise<InverterStatusResponse>} Inverter status code and description
+   */
   @Get('status')
-  async getStatus() {
+  public async getStatus(): Promise<InverterStatusResponse> {
     try {
       return await this.solisService.getStatus();
     } catch (error) {
@@ -17,8 +41,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves solar photovoltaic panel data
+   * @returns {Promise<SolisPVData>} PV panel voltage, current, and power data for each string
+   */
   @Get('pv')
-  async getPVData() {
+  public async getPVData(): Promise<SolisPVData> {
     try {
       return await this.solisService.getPVData();
     } catch (error) {
@@ -29,8 +57,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves AC power output data from the inverter
+   * @returns {Promise<SolisACData>} AC power, frequency, and temperature data
+   */
   @Get('ac')
-  async getACData() {
+  public async getACData(): Promise<SolisACData> {
     try {
       return await this.solisService.getACData();
     } catch (error) {
@@ -41,8 +73,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves house consumption data
+   * @returns {Promise<SolisHouseData>} House consumption and backup consumption data
+   */
   @Get('house')
-  async getHouseData() {
+  public async getHouseData(): Promise<SolisHouseData> {
     try {
       return await this.solisService.getHouseData();
     } catch (error) {
@@ -53,8 +89,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves electrical grid interaction data
+   * @returns {Promise<SolisGridData>} Grid power, inverter power, and energy import/export data
+   */
   @Get('grid')
-  async getGridData() {
+  public async getGridData(): Promise<SolisGridData> {
     try {
       return await this.solisService.getGridData();
     } catch (error) {
@@ -65,8 +105,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves battery storage system data
+   * @returns {Promise<SolisBatteryData>} Battery power, SOC, voltage, and current data
+   */
   @Get('battery')
-  async getBatteryData() {
+  public async getBatteryData(): Promise<SolisBatteryData> {
     try {
       return await this.solisService.getBatteryData();
     } catch (error) {
@@ -77,8 +121,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Retrieves complete inverter data including all subsystems
+   * @returns {Promise<SolisInverterData>} Complete dataset with PV, AC, house, grid, and battery data
+   */
   @Get('all')
-  async getAllData() {
+  public async getAllData(): Promise<SolisInverterData> {
     try {
       return await this.solisService.getAllData();
     } catch (error) {
@@ -89,8 +137,12 @@ export class SolisController {
     }
   }
 
+  /**
+   * Tests the RS485 communication connection to the Solis inverter
+   * @returns {Promise<ConnectionTestResponse>} Connection status and timestamp
+   */
   @Get('test')
-  async testConnection() {
+  public async testConnection(): Promise<ConnectionTestResponse> {
     try {
       const isConnected = await this.solisService.testConnection();
       return {

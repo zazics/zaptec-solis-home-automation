@@ -6,16 +6,16 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(): string {
+  public getHello(): string {
     return this.appService.getHello();
   }
 
   @Get('health')
-  getHealth() {
+  public getHealth(): any {
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
-      service: 'Zaptec-Solis Home Automation'
+      service: 'Zaptec-Solis Home Automation',
     };
   }
 }

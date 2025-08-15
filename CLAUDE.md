@@ -34,22 +34,27 @@ npm run format
 ## Architecture
 
 ### Module Structure
+
 - **SolisModule**: Handles RS485/Modbus communication with the Solis inverter
 - **ZaptecModule**: Manages API communication with Zaptec charging station
 - **HomeAutomationModule**: Core automation logic that coordinates between Solis data and Zaptec control
 
 ### Hardware Communication
+
 - **RS485 Communication**: Uses serialport library to communicate with Solis inverter via Waveshare USB-to-RS485 module
 - **Modbus RTU Protocol**: Custom implementation in `src/common/modbus-rtu.ts` for reading inverter registers
 - **REST API Integration**: Communicates with Zaptec cloud API for charger control
 
 ### Configuration
+
 Environment variables are managed through NestJS ConfigModule:
+
 - **Solis settings**: Port, baud rate, slave ID, timeouts
 - **Zaptec credentials**: Username, password, charger ID
 - **Automation parameters**: Power thresholds, operating modes, schedules
 
 ### Key Features
+
 - **Surplus Mode**: Charges only when solar production exceeds consumption
 - **Scheduled Mode**: Time-based charging with surplus consideration
 - **Manual Mode**: Direct charger control via API
@@ -58,6 +63,7 @@ Environment variables are managed through NestJS ConfigModule:
 ## API Endpoints
 
 The application provides REST endpoints organized by module:
+
 - `/solis/*` - Inverter data and status
 - `/zaptec/*` - Charging station control
 - `/automation/*` - System status and configuration
@@ -75,3 +81,13 @@ The application provides REST endpoints organized by module:
 - ESLint configuration includes Prettier integration
 - Jest is configured for unit testing with coverage support
 - The application uses decorators extensively (NestJS framework requirement)
+
+## Code Documentation Standards
+
+- **Always add JSDoc comments** to class headers describing the class purpose
+- **Always add method documentation** with parameter descriptions, return types, and purpose
+- **Always add explicit return types** to all methods (e.g., `Promise<ZaptecStatus>`, `Promise<{success: boolean}>`)
+- **Always specify access modifiers** on all methods and constructors (`public`, `private`, `protected`)
+- Use English for all comments and documentation
+- Follow JSDoc format: `@param {type} name - description` and `@returns {type} description`
+- Import necessary types/interfaces when used in return type annotations

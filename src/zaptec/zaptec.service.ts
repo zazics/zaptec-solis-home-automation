@@ -6,27 +6,33 @@ export interface ZaptecStatus {
   name: string;
   online: boolean;
   charging: boolean;
-  current: number; // Ampères
+  current: number; // Amperes
   power: number; // Watts
   energy: number; // kWh
   vehicleConnected: boolean;
 }
 
 export interface ZaptecChargingSettings {
-  maxCurrent: number; // Ampères
+  maxCurrent: number; // Amperes
   enabled: boolean;
+}
+
+export interface ApiResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
 }
 
 @Injectable()
 export class ZaptecService {
   private readonly logger = new Logger(ZaptecService.name);
-  
+
   // Configuration
   private readonly baseUrl: string;
   private readonly username: string;
   private readonly password: string;
   private readonly chargerId: string;
-  
+
   // Auth token
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
@@ -39,7 +45,7 @@ export class ZaptecService {
   }
 
   /**
-   * Authentifie avec l'API Zaptec
+   * Authenticates with the Zaptec API
    */
   private async authenticate(): Promise<void> {
     if (this.accessToken && this.tokenExpiry && new Date() < this.tokenExpiry) {
@@ -65,11 +71,11 @@ export class ZaptecService {
 
       const data = await response.json();
       this.accessToken = data.access_token;
-      
+
       // Set expiry to 5 minutes before actual expiry for safety
       const expiresIn = (data.expires_in - 300) * 1000;
       this.tokenExpiry = new Date(Date.now() + expiresIn);
-      
+
       this.logger.log('Successfully authenticated with Zaptec API');
     } catch (error) {
       this.logger.error('Failed to authenticate with Zaptec API:', error);
@@ -78,7 +84,7 @@ export class ZaptecService {
   }
 
   /**
-   * Effectue un appel API authentifié
+   * Performs an authenticated API call
    */
   private async apiCall(endpoint: string, options: RequestInit = {}): Promise<any> {
     await this.authenticate();
@@ -86,7 +92,7 @@ export class ZaptecService {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
+        Authorization: `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
         ...options.headers,
       },
@@ -100,12 +106,12 @@ export class ZaptecService {
   }
 
   /**
-   * Récupère le statut de la borne de recharge
+   * Retrieves the charging station status
    */
-  async getChargerStatus(): Promise<ZaptecStatus> {
+  public async getChargerStatus(): Promise<ZaptecStatus> {
     try {
       const data = await this.apiCall(`/chargers/${this.chargerId}`);
-      
+
       return {
         id: data.Id,
         name: data.Name || 'Zaptec Charger',
@@ -123,9 +129,9 @@ export class ZaptecService {
   }
 
   /**
-   * Configure le courant maximum de charge
+   * Sets the maximum charging current
    */
-  async setMaxCurrent(maxCurrent: number): Promise<void> {
+  public async setMaxCurrent(maxCurrent: number): Promise<void> {
     try {
       await this.apiCall(`/chargers/${this.chargerId}/settings`, {
         method: 'PUT',
@@ -133,7 +139,7 @@ export class ZaptecService {
           MaxCurrent: maxCurrent,
         }),
       });
-      
+
       this.logger.log(`Set max current to ${maxCurrent}A`);
     } catch (error) {
       this.logger.error('Failed to set max current:', error);
@@ -142,15 +148,15 @@ export class ZaptecService {
   }
 
   /**
-   * Active ou désactive la charge
+   * Enables or disables charging
    */
-  async setChargingEnabled(enabled: boolean): Promise<void> {
+  public async setChargingEnabled(enabled: boolean): Promise<void> {
     try {
       const endpoint = enabled ? 'start_charging' : 'stop_charging';
       await this.apiCall(`/chargers/${this.chargerId}/${endpoint}`, {
         method: 'POST',
       });
-      
+
       this.logger.log(`Charging ${enabled ? 'enabled' : 'disabled'}`);
     } catch (error) {
       this.logger.error('Failed to set charging state:', error);
@@ -159,29 +165,29 @@ export class ZaptecService {
   }
 
   /**
-   * Configure les paramètres de charge optimaux en fonction de la puissance disponible
+   * Configures optimal charging parameters based on available power
    */
-  async optimizeCharging(availablePower: number): Promise<void> {
-    // Voltage typique en Europe (230V monophasé)
+  public async optimizeCharging(availablePower: number): Promise<void> {
+    // Typical voltage in Europe (230V single-phase)
     const voltage = 230;
-    
-    // Calcule le courant maximum possible avec la puissance disponible
-    // P = U * I, donc I = P / U
+
+    // Calculate the maximum possible current with available power
+    // P = U * I, so I = P / U
     const maxPossibleCurrent = Math.floor(availablePower / voltage);
-    
-    // Limite le courant entre 6A (minimum pour la charge) et 32A (maximum typique)
+
+    // Limit current between 6A (minimum for charging) and 32A (typical maximum)
     const minCurrent = 6;
     const maxCurrent = 32;
     const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
-    
+
     this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`);
-    
+
     if (availablePower < minCurrent * voltage) {
-      // Pas assez de puissance pour charger, désactiver
+      // Not enough power to charge, disable
       await this.setChargingEnabled(false);
       this.logger.log('Insufficient power, charging disabled');
     } else {
-      // Configurer le courant et activer la charge
+      // Configure current and enable charging
       await this.setMaxCurrent(optimizedCurrent);
       await this.setChargingEnabled(true);
       this.logger.log(`Charging optimized to ${optimizedCurrent}A`);
@@ -189,17 +195,17 @@ export class ZaptecService {
   }
 
   /**
-   * Récupère l'historique de charge
+   * Retrieves charging history
    */
-  async getChargingHistory(days: number = 7): Promise<any[]> {
+  public async getChargingHistory(days: number = 7): Promise<any[]> {
     try {
       const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000));
-      
+      const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
       const data = await this.apiCall(
-        `/chargers/${this.chargerId}/sessions?from=${startDate.toISOString()}&to=${endDate.toISOString()}`
+        `/chargers/${this.chargerId}/sessions?from=${startDate.toISOString()}&to=${endDate.toISOString()}`,
       );
-      
+
       return data;
     } catch (error) {
       this.logger.error('Failed to get charging history:', error);
@@ -208,9 +214,9 @@ export class ZaptecService {
   }
 
   /**
-   * Test de connectivité avec l'API Zaptec
+   * Tests connectivity with the Zaptec API
    */
-  async testConnection(): Promise<boolean> {
+  public async testConnection(): Promise<boolean> {
     try {
       await this.authenticate();
       await this.getChargerStatus();

@@ -8,7 +8,7 @@ export class ModbusRTU {
    * @param data - Données pour lesquelles calculer le CRC
    * @returns Tableau contenant les 2 bytes du CRC [Low, High]
    */
-  static calculateCRC(data: number[]): number[] {
+  public static calculateCRC(data: number[]): number[] {
     let crc = 0xffff;
     for (let i = 0; i < data.length; i++) {
       crc ^= data[i]!;
@@ -31,8 +31,15 @@ export class ModbusRTU {
    * @param quantity - Nombre de registres à lire
    * @returns Trame Modbus complète prête à envoyer
    */
-  static createReadFrame(slaveId: number, functionCode: number, startAddr: number, quantity: number): Buffer {
-    const frame = [slaveId, functionCode, (startAddr >> 8) & 0xff, startAddr & 0xff, (quantity >> 8) & 0xff, quantity & 0xff];
+  public static createReadFrame(slaveId: number, functionCode: number, startAddr: number, quantity: number): Buffer {
+    const frame = [
+      slaveId,
+      functionCode,
+      (startAddr >> 8) & 0xff,
+      startAddr & 0xff,
+      (quantity >> 8) & 0xff,
+      quantity & 0xff,
+    ];
     const crc = this.calculateCRC(frame);
     return Buffer.from([...frame, ...crc]);
   }
@@ -45,7 +52,7 @@ export class ModbusRTU {
    * @param values - Valeurs à écrire
    * @returns Trame Modbus complète prête à envoyer
    */
-  static createWriteFrame(slaveId: number, functionCode: number, startAddr: number, values: number[]): Buffer {
+  public static createWriteFrame(slaveId: number, functionCode: number, startAddr: number, values: number[]): Buffer {
     const frame = [slaveId, functionCode, (startAddr >> 8) & 0xff, startAddr & 0xff];
 
     if (functionCode === 0x06) {
@@ -69,7 +76,7 @@ export class ModbusRTU {
    * @param data - Données reçues incluant le CRC
    * @returns true si le CRC est valide, false sinon
    */
-  static verifyCRC(data: Buffer): boolean {
+  public static verifyCRC(data: Buffer): boolean {
     if (data.length < 3) return false;
 
     const frameData = Array.from(data.slice(0, data.length - 2));
@@ -84,11 +91,11 @@ export class ModbusRTU {
    * @param data - Données reçues
    * @returns Objet avec les informations parsées ou null si invalide
    */
-  static parseResponse(data: Buffer): ModbusResponse | null {
+  public static parseResponse(data: Buffer): ModbusResponse | null {
     if (!data || data.length < 5) return null;
 
     if (!this.verifyCRC(data)) {
-      return { error: "CRC invalide" };
+      return { error: 'CRC invalide' };
     }
 
     const slaveId = data[0]!;
@@ -100,7 +107,7 @@ export class ModbusRTU {
       return {
         slaveId,
         functionCode: functionCode & 0x7f,
-        error: `Exception ${exceptionCode}: ${this.getExceptionText(exceptionCode)}`
+        error: `Exception ${exceptionCode}: ${this.getExceptionText(exceptionCode)}`,
       };
     }
 
@@ -113,7 +120,7 @@ export class ModbusRTU {
       slaveId,
       functionCode,
       dataLength,
-      data: responseData
+      data: responseData,
     };
   }
 
@@ -122,7 +129,7 @@ export class ModbusRTU {
    * @param data - Données brutes des registres
    * @returns Tableau des valeurs des registres
    */
-  static parseRegisters(data: Buffer): number[] {
+  public static parseRegisters(data: Buffer): number[] {
     const registers: number[] = [];
     for (let i = 0; i < data.length; i += 2) {
       if (i + 1 < data.length) {
@@ -138,13 +145,13 @@ export class ModbusRTU {
    * @param data - Données à convertir
    * @returns Chaîne hexadécimale formatée (ex: "01 03 00 00 00 01 84 0A")
    */
-  static bufferToHex(data: Buffer): string {
+  public static bufferToHex(data: Buffer): string {
     return (
       data
-        .toString("hex")
+        .toString('hex')
         .toUpperCase()
         .match(/.{1,2}/g)
-        ?.join(" ") || "N/A"
+        ?.join(' ') || 'N/A'
     );
   }
 
@@ -153,17 +160,17 @@ export class ModbusRTU {
    * @param exceptionCode - Code d'exception Modbus
    * @returns Description de l'exception
    */
-  static getExceptionText(exceptionCode: number): string {
+  public static getExceptionText(exceptionCode: number): string {
     const exceptions: { [key: number]: string } = {
-      0x01: "Fonction illégale",
-      0x02: "Adresse de données illégale",
-      0x03: "Valeur de données illégale",
+      0x01: 'Fonction illégale',
+      0x02: 'Adresse de données illégale',
+      0x03: 'Valeur de données illégale',
       0x04: "Défaillance de l'appareil esclave",
-      0x05: "Accusé de réception",
-      0x06: "Appareil esclave occupé",
-      0x08: "Erreur de parité mémoire",
-      0x0a: "Passerelle de chemin indisponible",
-      0x0b: "Appareil cible non réactif"
+      0x05: 'Accusé de réception',
+      0x06: 'Appareil esclave occupé',
+      0x08: 'Erreur de parité mémoire',
+      0x0a: 'Passerelle de chemin indisponible',
+      0x0b: 'Appareil cible non réactif',
     };
     return exceptions[exceptionCode] || `Exception inconnue (0x${exceptionCode.toString(16)})`;
   }
@@ -176,7 +183,12 @@ export class ModbusRTU {
    * @param quantity - Nombre de registres (1-125 pour lecture)
    * @returns true si valide, false sinon
    */
-  static validateParameters(slaveId: number, functionCode: number, startAddr: number, quantity: number): boolean {
+  public static validateParameters(
+    slaveId: number,
+    functionCode: number,
+    startAddr: number,
+    quantity: number,
+  ): boolean {
     if (slaveId < 1 || slaveId > 247) return false;
     if (![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x0f, 0x10].includes(functionCode)) return false;
     if (startAddr < 0 || startAddr > 65535) return false;
@@ -217,5 +229,5 @@ export enum ModbusFunctionCode {
   WRITE_SINGLE_COIL = 0x05,
   WRITE_SINGLE_REGISTER = 0x06,
   WRITE_MULTIPLE_COILS = 0x0f,
-  WRITE_MULTIPLE_REGISTERS = 0x10
+  WRITE_MULTIPLE_REGISTERS = 0x10,
 }
