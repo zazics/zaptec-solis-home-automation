@@ -3,6 +3,31 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 
+/**
+ * Centralized logging service for the entire application
+ * 
+ * Provides unified logging functionality across all services and controllers
+ * with support for multiple output targets including console and file logging.
+ * Replaces the default NestJS Logger to ensure consistent log formatting
+ * and centralized log management.
+ * 
+ * Features:
+ * - Multi-level logging (debug, info, warn, error, verbose)
+ * - File-based logging with automatic directory creation
+ * - Context-aware logging for service identification
+ * - Separate error log file for critical issues
+ * - Configurable log directory and application name
+ * - Synchronous file writing for reliability
+ * - Console output with level indicators
+ * 
+ * Configuration:
+ * - LOG_DIR: Directory for log files (default: 'logs')
+ * - APP_NAME: Application name for log file naming (default: 'zaptec-solis-automation')
+ * 
+ * Output Files:
+ * - {APP_NAME}.log: All log entries
+ * - {APP_NAME}-error.log: Error-level entries only
+ */
 @Injectable()
 export class LoggingService {
   private readonly logDir: string;

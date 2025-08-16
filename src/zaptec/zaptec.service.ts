@@ -9,6 +9,20 @@ import {
 } from './models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 
+/**
+ * Service for managing Zaptec EV charging station operations
+ * 
+ * Handles authentication, API communication, and control of Zaptec charging stations.
+ * Provides methods for monitoring charger status, setting charging parameters,
+ * and optimizing charging based on available power from solar panels.
+ * 
+ * Features:
+ * - OAuth2 authentication with automatic token refresh
+ * - Real-time charger status monitoring via state endpoint
+ * - Dynamic current adjustment based on solar surplus
+ * - Installation-level configuration management
+ * - Charging history retrieval and analytics
+ */
 @Injectable()
 export class ZaptecService implements OnModuleInit {
   private readonly context = ZaptecService.name;
@@ -60,6 +74,10 @@ export class ZaptecService implements OnModuleInit {
   };
 
   constructor() {}
+
+  /**
+   * Module initialization
+   */
   public onModuleInit(): void {
     this.baseUrl = this.configService.get<string>('ZAPTEC_API_URL', 'https://api.zaptec.com');
     this.apiBaseUrl = this.configService.get<string>('ZAPTEC_API_BASE_URL', 'https://api.zaptec.com/api');

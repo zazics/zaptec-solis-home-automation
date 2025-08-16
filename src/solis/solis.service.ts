@@ -13,6 +13,27 @@ import {
   SolisPVData,
 } from './models/solis.model';
 
+/**
+ * Service for communicating with Solis S5-EH1P5K-L solar inverter
+ *
+ * Manages RS485/Modbus RTU communication to retrieve real-time data from the solar inverter.
+ * Provides comprehensive monitoring of solar production, battery status, grid interaction,
+ * and house consumption for home automation decision-making.
+ *
+ * Features:
+ * - RS485 serial communication via USB-to-RS485 adapter
+ * - Modbus RTU protocol implementation for register reading
+ * - Real-time solar PV panel monitoring (voltage, current, power)
+ * - AC power generation and frequency monitoring
+ * - Battery state-of-charge and power flow tracking
+ * - Grid import/export energy measurement
+ * - House consumption calculation and monitoring
+ * - Connection lifecycle management with automatic reconnection
+ *
+ * Hardware Requirements:
+ * - Waveshare USB-to-RS485 module (appears as /dev/ttyACM0 or COM port)
+ * - Connection to Solis inverter COM2 port (pins 3 & 4)
+ */
 @Injectable()
 export class SolisService implements OnModuleInit, OnModuleDestroy {
   private readonly context = SolisService.name;
@@ -69,6 +90,9 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
   constructor() {}
 
+  /**
+   * Module initialization
+   */
   public async onModuleInit(): Promise<void> {
     this.logger.log('Initializing Solis inverter connection...', this.context);
     this.portName = this.configService.get<string>('SOLIS_PORT', 'COM2');

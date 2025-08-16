@@ -7,30 +7,33 @@ import { ZaptecService } from '../zaptec/zaptec.service';
 import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 import { SolisInverterData } from '../solis/models/solis.model';
+import { AutomationConfig, AutomationStatus } from './models/home-automation.model';
 
-export interface AutomationStatus {
-  enabled: boolean;
-  lastUpdate: Date;
-  solarProduction: number; // W
-  houseConsumption: number; // W
-  availableForCharging: number; // W
-  chargingStatus: {
-    active: boolean;
-    current: number; // A
-    power: number; // W
-  };
-  mode: 'surplus' | 'scheduled' | 'manual';
-}
-
-export interface AutomationConfig {
-  enabled: boolean;
-  mode: 'surplus' | 'scheduled' | 'manual';
-  minSurplusPower: number; // Minimum surplus power to start charging (W)
-  maxChargingPower: number; // Maximum charging power (W)
-  scheduledHours: string[]; // Hours when charging is allowed (24h format)
-  priorityLoadReserve: number; // Power to reserve for priority loads (W)
-}
-
+/**
+ * Core automation service that coordinates solar energy production with EV charging
+ * 
+ * This service implements the main automation logic that monitors solar panel production
+ * via the Solis inverter and automatically controls the Zaptec charging station to
+ * optimize energy usage and maximize solar surplus utilization.
+ * 
+ * Automation Modes:
+ * - **Surplus Mode**: Charges only when solar production exceeds house consumption
+ * - **Scheduled Mode**: Time-based charging with surplus consideration
+ * - **Manual Mode**: Direct control without automation
+ * 
+ * Features:
+ * - Real-time power flow monitoring and calculation
+ * - Dynamic charging current adjustment based on available surplus
+ * - Load balancing with configurable priority load reserves
+ * - Historical data logging and analysis (when MongoDB enabled)
+ * - Scheduled automation cycles with configurable intervals
+ * - Vehicle detection and charging session management
+ * - Safety thresholds and maximum power limits
+ * 
+ * The service runs automated cycles every 30 seconds to evaluate current conditions
+ * and adjust charging parameters accordingly, ensuring optimal energy utilization
+ * while respecting safety limits and user preferences.
+ */
 @Injectable()
 export class HomeAutomationService implements OnModuleInit {
   private readonly context = HomeAutomationService.name;
@@ -46,6 +49,9 @@ export class HomeAutomationService implements OnModuleInit {
 
   constructor() {}
 
+  /**
+   * Module initialization
+   */
   public onModuleInit(): void {
     this.config = {
       enabled: this.configService.get<boolean>('AUTOMATION_ENABLED', true),

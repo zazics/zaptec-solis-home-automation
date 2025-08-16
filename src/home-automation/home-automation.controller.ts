@@ -1,38 +1,12 @@
 import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject } from '@nestjs/common';
-import { HomeAutomationService, AutomationConfig, AutomationStatus } from './home-automation.service';
-
-/**
- * Interface for configuration update response
- */
-export interface ConfigUpdateResponse {
-  success: boolean;
-  config: AutomationConfig;
-  timestamp: string;
-}
-
-/**
- * Interface for automation action response
- */
-export interface AutomationActionResponse {
-  success: boolean;
-  message: string;
-  timestamp: string;
-}
-
-/**
- * Interface for dashboard data response
- */
-export interface DashboardResponse {
-  status: AutomationStatus;
-  config: AutomationConfig;
-  summary: {
-    systemStatus: 'active' | 'inactive';
-    currentMode: 'surplus' | 'scheduled' | 'manual';
-    solarEfficiency: number;
-    chargingEfficiency: number;
-  };
-  timestamp: string;
-}
+import { HomeAutomationService } from './home-automation.service';
+import {
+  AutomationActionResponse,
+  AutomationConfig,
+  AutomationStatus,
+  ConfigUpdateResponse,
+  DashboardResponse,
+} from './models/home-automation.model';
 
 /**
  * Controller for managing home automation system
