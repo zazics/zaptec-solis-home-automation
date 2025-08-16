@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SerialPort } from 'serialport';
 import { ModbusRTU, ModbusFunctionCode } from '../common/modbus-rtu';
+import { LoggingService } from '../common/logging.service';
 
 /**
  * Interface for solar PV panel data
@@ -89,7 +90,8 @@ export interface SolisConnectionOptions {
 
 @Injectable()
 export class SolisService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(SolisService.name);
+  private readonly context = SolisService.name;
+
   private port: SerialPort | null = null;
   private isConnected: boolean = false;
 
@@ -137,7 +139,10 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     BATTERY_CURRENT: 33134,
   };
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logger: LoggingService,
+  ) {
     this.portName = this.configService.get<string>('SOLIS_PORT', 'COM2');
     this.options = {
       baudRate: this.configService.get<number>('SOLIS_BAUD_RATE', 9600),
@@ -152,17 +157,17 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   public async onModuleInit(): Promise<void> {
-    this.logger.log('Initializing Solis inverter connection...');
+    this.logger.log('Initializing Solis inverter connection...', this.context);
     try {
       await this.connect();
-      this.logger.log('Successfully connected to Solis inverter');
+      this.logger.log('Successfully connected to Solis inverter', this.context);
     } catch (error) {
-      this.logger.error('Failed to connect to Solis inverter:', error);
+      this.logger.error('Failed to connect to Solis inverter', error, this.context);
     }
   }
 
   public async onModuleDestroy(): Promise<void> {
-    this.logger.log('Disconnecting from Solis inverter...');
+    this.logger.log('Disconnecting from Solis inverter...', this.context);
     await this.disconnect();
   }
 
@@ -183,12 +188,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     return new Promise((resolve, reject) => {
       this.port?.on('open', () => {
         this.isConnected = true;
-        this.logger.log(`Connected to Solis inverter on ${this.portName}`);
+        this.logger.log(`Connected to Solis inverter on ${this.portName}`, this.context);
         resolve();
       });
 
       this.port?.on('error', (err: Error) => {
-        this.logger.error('Serial port error:', err);
+        this.logger.error('Serial port error', err, this.context);
         reject(err);
       });
     });
@@ -202,7 +207,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       return new Promise((resolve) => {
         this.port?.close(() => {
           this.isConnected = false;
-          this.logger.log('Disconnected from Solis inverter');
+          this.logger.log('Disconnected from Solis inverter', this.context);
           resolve();
         });
       });
@@ -410,6 +415,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.debug(
         `Status register ${SolisService.REGISTERS.STATUS}: ${statusCode} (0x${statusCode.toString(16)})`,
+        this.context,
       );
 
       // Updated status mapping based on Solis documentation
@@ -427,7 +433,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
         text: statusMap[statusCode] || `Unknown (${statusCode}, 0x${statusCode.toString(16)})`,
       };
     } catch (error) {
-      this.logger.error('Failed to read status registers:', error);
+      this.logger.error('Failed to read status registers', error, this.context);
       throw error;
     }
   }

@@ -1,10 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ZaptecStateObservation, ZaptecStatus, ZaptecChargerInfo } from './models/zaptec.model';
+import {
+  ZaptecStateObservation,
+  ZaptecStatus,
+  ZaptecChargerInfo,
+  ZaptecInstallationInfo,
+  ZaptecInstallationUpdateRequest,
+} from './models/zaptec.model';
+import { LoggingService } from '../common/logging.service';
 
 @Injectable()
 export class ZaptecService {
-  private readonly logger = new Logger(ZaptecService.name);
+  private readonly context = ZaptecService.name;
 
   // Configuration
   private readonly baseUrl: string;
@@ -12,11 +19,12 @@ export class ZaptecService {
   private readonly username: string;
   private readonly password: string;
   private readonly chargerId: string;
+  private readonly installationId: string;
 
   // Auth token
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
-  
+
   // Solar panel max power configuration
   private readonly maxSolarPowerWatts: number;
 
@@ -48,12 +56,16 @@ export class ZaptecService {
     716: 'DetectedCar', // Car detection
   };
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logger: LoggingService,
+  ) {
     this.baseUrl = this.configService.get<string>('ZAPTEC_API_URL', 'https://api.zaptec.com');
     this.apiBaseUrl = this.configService.get<string>('ZAPTEC_API_BASE_URL', 'https://api.zaptec.com/api');
     this.username = this.configService.get<string>('ZAPTEC_USERNAME', '');
     this.password = this.configService.get<string>('ZAPTEC_PASSWORD', '');
     this.chargerId = this.configService.get<string>('ZAPTEC_CHARGER_ID', '');
+    this.installationId = this.configService.get<string>('ZAPTEC_INSTALLATION_ID', '');
     this.maxSolarPowerWatts = this.configService.get<number>('MAX_SOLAR_POWER_WATTS', 5000);
   }
 
@@ -89,9 +101,9 @@ export class ZaptecService {
       const expiresIn = (data.expires_in - 300) * 1000;
       this.tokenExpiry = new Date(Date.now() + expiresIn);
 
-      this.logger.log('Successfully authenticated with Zaptec API');
+      this.logger.log('Successfully authenticated with Zaptec API', this.context);
     } catch (error) {
-      this.logger.error('Failed to authenticate with Zaptec API:', error);
+      this.logger.error('Failed to authenticate with Zaptec API', error, this.context);
       throw error;
     }
   }
@@ -162,26 +174,23 @@ export class ZaptecService {
 
       return zaptecStatus;
     } catch (error) {
-      this.logger.error('Failed to get charger status:', error);
+      this.logger.error('Failed to get charger status', error, this.context);
       throw error;
     }
   }
 
   /**
-   * Sets the maximum charging current
+   * Sets the available charging current for the installation
    */
   public async setMaxCurrent(maxCurrent: number): Promise<void> {
     try {
-      await this.apiCall(`/chargers/${this.chargerId}/settings`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          MaxCurrent: maxCurrent,
-        }),
+      await this.updateInstallationInfo({
+        availableCurrent: maxCurrent,
       });
 
-      this.logger.log(`Set max current to ${maxCurrent}A`);
+      this.logger.log(`Set available current to ${maxCurrent}A`, this.context);
     } catch (error) {
-      this.logger.error('Failed to set max current:', error);
+      this.logger.error('Failed to set available current', error, this.context);
       throw error;
     }
   }
@@ -196,9 +205,9 @@ export class ZaptecService {
         method: 'POST',
       });
 
-      this.logger.log(`Charging ${enabled ? 'enabled' : 'disabled'}`);
+      this.logger.log(`Charging ${enabled ? 'enabled' : 'disabled'}`, this.context);
     } catch (error) {
-      this.logger.error('Failed to set charging state:', error);
+      this.logger.error('Failed to set charging state', error, this.context);
       throw error;
     }
   }
@@ -220,17 +229,17 @@ export class ZaptecService {
     const maxCurrent = Math.min(32, maxCurrentFromSolar); // Never exceed 32A or solar panel capacity
     const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
 
-    this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`);
+    this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`, this.context);
 
     if (availablePower < minCurrent * voltage) {
       // Not enough power to charge, disable
       await this.setChargingEnabled(false);
-      this.logger.log('Insufficient power, charging disabled');
+      this.logger.log('Insufficient power, charging disabled', this.context);
     } else {
       // Configure current and enable charging
       await this.setMaxCurrent(optimizedCurrent);
       await this.setChargingEnabled(true);
-      this.logger.log(`Charging optimized to ${optimizedCurrent}A`);
+      this.logger.log(`Charging optimized to ${optimizedCurrent}A`, this.context);
     }
   }
 
@@ -248,7 +257,37 @@ export class ZaptecService {
 
       return data;
     } catch (error) {
-      this.logger.error('Failed to get charging history:', error);
+      this.logger.error('Failed to get charging history', error, this.context);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieves installation information
+   */
+  public async getInstallationInfo(): Promise<ZaptecInstallationInfo> {
+    try {
+      const data = await this.apiCall<ZaptecInstallationInfo>(`/installation/${this.installationId}`);
+      return data;
+    } catch (error) {
+      this.logger.error('Failed to get installation info', error, this.context);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates installation settings (do not update more than once every 15 minutes)
+   */
+  public async updateInstallationInfo(updateData: ZaptecInstallationUpdateRequest): Promise<void> {
+    try {
+      await this.apiCall(`/installation/${this.installationId}/update`, {
+        method: 'POST',
+        body: JSON.stringify(updateData),
+      });
+
+      this.logger.log('Installation info updated successfully', this.context);
+    } catch (error) {
+      this.logger.error('Failed to update installation info', error, this.context);
       throw error;
     }
   }
@@ -262,7 +301,7 @@ export class ZaptecService {
       await this.getChargerStatus();
       return true;
     } catch (error) {
-      this.logger.error('Zaptec connection test failed:', error);
+      this.logger.error('Zaptec connection test failed', error, this.context);
       return false;
     }
   }

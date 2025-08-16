@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { SolisModule } from './solis/solis.module';
 import { ZaptecModule } from './zaptec/zaptec.module';
 import { HomeAutomationModule } from './home-automation/home-automation.module';
+import { LoggingService } from './common/logging.service';
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { HomeAutomationModule } from './home-automation/home-automation.module';
     HomeAutomationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, LoggingService],
 })
 export class AppModule {}

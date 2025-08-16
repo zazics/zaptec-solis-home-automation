@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SolisService, SolisInverterData } from '../solis/solis.service';
 import { SolisDataService } from '../solis/solis-data.service';
 import { ZaptecService } from '../zaptec/zaptec.service';
 import { ZaptecStatus } from '../zaptec/models/zaptec.model';
+import { LoggingService } from '../common/logging.service';
 
 export interface AutomationStatus {
   enabled: boolean;
@@ -31,17 +32,18 @@ export interface AutomationConfig {
 
 @Injectable()
 export class HomeAutomationService {
-  private readonly logger = new Logger(HomeAutomationService.name);
+  private readonly context = HomeAutomationService.name;
 
   private config: AutomationConfig;
   private lastAutomationRun: Date = new Date();
   private automationEnabled: boolean = true;
 
   constructor(
-    private readonly configService: ConfigService,
     private readonly solisService: SolisService,
     private readonly solisDataService: SolisDataService,
     private readonly zaptecService: ZaptecService,
+    private readonly configService: ConfigService,
+    private readonly logger: LoggingService,
   ) {
     this.config = {
       enabled: this.configService.get<boolean>('AUTOMATION_ENABLED', true),
@@ -52,7 +54,8 @@ export class HomeAutomationService {
       priorityLoadReserve: this.configService.get<number>('PRIORITY_LOAD_RESERVE', 500), // 500W reserve
     };
 
-    this.logger.log('Home automation service initialized with config:', this.config);
+    this.logger.log('Home automation service initialized with config', this.context);
+    this.logger.debug(JSON.stringify(this.config), this.context);
   }
 
   /**
@@ -65,7 +68,7 @@ export class HomeAutomationService {
     }
 
     try {
-      this.logger.debug('Running automation cycle...');
+      this.logger.debug('Running automation cycle...', this.context);
 
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
@@ -73,9 +76,9 @@ export class HomeAutomationService {
       // Store Solis data in MongoDB for historical analysis
       try {
         await this.solisDataService.saveData(solisData);
-        this.logger.debug('Solis data saved to MongoDB');
+        this.logger.debug('Solis data saved to MongoDB', this.context);
       } catch (mongoError) {
-        this.logger.warn('Failed to save Solis data to MongoDB:', mongoError);
+        this.logger.warn('Failed to save Solis data to MongoDB', this.context);
         // Continue with automation even if MongoDB save fails
       }
 
@@ -90,7 +93,7 @@ export class HomeAutomationService {
 
       this.lastAutomationRun = new Date();
     } catch (error) {
-      this.logger.error('Automation cycle failed:', error);
+      this.logger.error('Automation cycle failed', error, this.context);
     }
   }
 
@@ -138,7 +141,7 @@ export class HomeAutomationService {
 
       case 'manual':
         // Manual mode - no automation
-        this.logger.debug('Manual mode - no automatic control');
+        this.logger.debug('Manual mode - no automatic control', this.context);
         break;
     }
   }
@@ -151,15 +154,15 @@ export class HomeAutomationService {
       // Enough surplus and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
       await this.zaptecService.optimizeCharging(chargingPower);
-      this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`);
+      this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`, this.context);
     } else if (availablePower < this.config.minSurplusPower && zaptecStatus.charging) {
       // Pas assez de surplus et en cours de charge
       await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Surplus mode: Stopping charging - insufficient surplus');
+      this.logger.log('Surplus mode: Stopping charging - insufficient surplus', this.context);
     } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
       // Vehicle disconnected but charging active
       await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Surplus mode: Stopping charging - vehicle disconnected');
+      this.logger.log('Surplus mode: Stopping charging - vehicle disconnected', this.context);
     }
   }
 
@@ -174,15 +177,18 @@ export class HomeAutomationService {
       // Scheduled hour, surplus available and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
       await this.zaptecService.optimizeCharging(chargingPower);
-      this.logger.log(`Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`);
+      this.logger.log(
+        `Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`,
+        this.context,
+      );
     } else if (!isScheduledHour && zaptecStatus.charging) {
       // Outside scheduled time slot
       await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Scheduled mode: Stopping charging - outside scheduled hours');
+      this.logger.log('Scheduled mode: Stopping charging - outside scheduled hours', this.context);
     } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
       // Vehicle disconnected
       await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Scheduled mode: Stopping charging - vehicle disconnected');
+      this.logger.log('Scheduled mode: Stopping charging - vehicle disconnected', this.context);
     }
   }
 
@@ -209,7 +215,7 @@ export class HomeAutomationService {
         mode: this.config.mode,
       };
     } catch (error) {
-      this.logger.error('Failed to get automation status:', error);
+      this.logger.error('Failed to get automation status', error, this.context);
       throw error;
     }
   }
@@ -219,7 +225,8 @@ export class HomeAutomationService {
    */
   public async updateConfig(newConfig: Partial<AutomationConfig>): Promise<AutomationConfig> {
     this.config = { ...this.config, ...newConfig };
-    this.logger.log('Automation config updated:', this.config);
+    this.logger.log('Automation config updated', this.context);
+    this.logger.debug(JSON.stringify(this.config), this.context);
     return this.config;
   }
 
@@ -228,7 +235,7 @@ export class HomeAutomationService {
    */
   public async setAutomationEnabled(enabled: boolean): Promise<void> {
     this.automationEnabled = enabled;
-    this.logger.log(`Automation ${enabled ? 'enabled' : 'disabled'}`);
+    this.logger.log(`Automation ${enabled ? 'enabled' : 'disabled'}`, this.context);
 
     if (!enabled) {
       // If disabled, stop charging if active
@@ -236,10 +243,10 @@ export class HomeAutomationService {
         const zaptecStatus = await this.zaptecService.getChargerStatus();
         if (zaptecStatus.charging) {
           await this.zaptecService.setChargingEnabled(false);
-          this.logger.log('Stopped charging due to automation being disabled');
+          this.logger.log('Stopped charging due to automation being disabled', this.context);
         }
       } catch (error) {
-        this.logger.error('Failed to stop charging when disabling automation:', error);
+        this.logger.error('Failed to stop charging when disabling automation', error, this.context);
       }
     }
   }
@@ -255,7 +262,7 @@ export class HomeAutomationService {
    * Forces manual execution of automation
    */
   public async runManualAutomation(): Promise<void> {
-    this.logger.log('Manual automation run requested');
+    this.logger.log('Manual automation run requested', this.context);
     await this.runAutomation();
   }
 }

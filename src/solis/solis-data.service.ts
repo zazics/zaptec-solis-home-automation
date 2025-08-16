@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SolisData, SolisDataDocument } from './schemas/solis-data.schema';
 import { SolisInverterData } from './solis.service';
+import { LoggingService } from '../common/logging.service';
 
 /**
  * Service for managing Solis data storage in MongoDB
@@ -10,10 +11,11 @@ import { SolisInverterData } from './solis.service';
  */
 @Injectable()
 export class SolisDataService {
-  private readonly logger = new Logger(SolisDataService.name);
+  private readonly context = SolisDataService.name;
 
   constructor(
     @InjectModel(SolisData.name) private solisDataModel: Model<SolisDataDocument>,
+    private readonly logger: LoggingService,
   ) {}
 
   /**
@@ -43,11 +45,11 @@ export class SolisDataService {
       });
 
       const savedData = await solisData.save();
-      this.logger.debug(`Saved Solis data: ${savedData._id}`);
-      
+      this.logger.debug(`Saved Solis data: ${savedData._id}`, this.context);
+
       return savedData;
     } catch (error) {
-      this.logger.error('Failed to save Solis data:', error);
+      this.logger.error('Failed to save Solis data', error, this.context);
       throw error;
     }
   }
@@ -59,13 +61,9 @@ export class SolisDataService {
    */
   public async getRecentData(limit: number = 100): Promise<SolisDataDocument[]> {
     try {
-      return await this.solisDataModel
-        .find()
-        .sort({ timestamp: -1 })
-        .limit(limit)
-        .exec();
+      return await this.solisDataModel.find().sort({ timestamp: -1 }).limit(limit).exec();
     } catch (error) {
-      this.logger.error('Failed to retrieve recent data:', error);
+      this.logger.error('Failed to retrieve recent data', error, this.context);
       throw error;
     }
   }
@@ -88,7 +86,7 @@ export class SolisDataService {
         .sort({ timestamp: 1 })
         .exec();
     } catch (error) {
-      this.logger.error('Failed to retrieve data by date range:', error);
+      this.logger.error('Failed to retrieve data by date range', error, this.context);
       throw error;
     }
   }
@@ -102,7 +100,7 @@ export class SolisDataService {
     try {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
@@ -137,7 +135,7 @@ export class SolisDataService {
       const result = await this.solisDataModel.aggregate(pipeline).exec();
       return result[0] || {};
     } catch (error) {
-      this.logger.error('Failed to calculate daily stats:', error);
+      this.logger.error('Failed to calculate daily stats', error, this.context);
       throw error;
     }
   }
@@ -156,10 +154,10 @@ export class SolisDataService {
         timestamp: { $lt: cutoffDate },
       });
 
-      this.logger.log(`Cleaned up ${result.deletedCount} old records older than ${retentionDays} days`);
+      this.logger.log(`Cleaned up ${result.deletedCount} old records older than ${retentionDays} days`, this.context);
       return result.deletedCount;
     } catch (error) {
-      this.logger.error('Failed to cleanup old data:', error);
+      this.logger.error('Failed to cleanup old data', error, this.context);
       throw error;
     }
   }

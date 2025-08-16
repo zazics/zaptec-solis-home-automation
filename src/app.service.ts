@@ -1,18 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ZaptecService } from './zaptec/zaptec.service';
+import { LoggingService } from './common/logging.service';
 
 @Injectable()
 export class AppService {
+  private readonly context = AppService.name;
+
   /**
    * Constructor
    */
-  constructor(private zaptecService: ZaptecService) {
+  constructor(
+    private zaptecService: ZaptecService,
+    private readonly logger: LoggingService,
+  ) {
     this.initialize();
   }
 
   private async initialize(): Promise<void> {
     const zaptecStatus = await this.zaptecService.getChargerStatus();
-    console.info('AppService', zaptecStatus);
+
+    await this.zaptecService.setMaxCurrent(6);
+    this.logger.log('AppService initialized with Zaptec status', this.context);
   }
 
   public getHello(): string {
