@@ -10,18 +10,18 @@ export type SolisDataDocument = SolisData & Document;
 @Schema({ timestamps: true })
 export class SolisData {
   @Prop({ required: true })
-  timestamp: Date;
+  public timestamp: Date;
 
   // Status information
   @Prop({ required: true })
-  statusCode: number;
+  public statusCode: number;
 
   @Prop({ required: true })
-  statusText: string;
+  public statusText: string;
 
   // PV data
   @Prop({ type: Object, required: true })
-  pv: {
+  public pv: {
     pv1: {
       voltage: number;
       current: number;
@@ -37,7 +37,7 @@ export class SolisData {
 
   // AC data
   @Prop({ type: Object, required: true })
-  ac: {
+  public ac: {
     totalPowerAC: number;
     frequency: number;
     temperature: number;
@@ -45,14 +45,14 @@ export class SolisData {
 
   // House consumption data
   @Prop({ type: Object, required: true })
-  house: {
+  public house: {
     consumption: number;
     backupConsumption: number;
   };
 
   // Grid data
   @Prop({ type: Object, required: true })
-  grid: {
+  public grid: {
     activePower: number;
     inverterPower: number;
     importedEnergyTotal: number;
@@ -61,7 +61,7 @@ export class SolisData {
 
   // Battery data
   @Prop({ type: Object, required: true })
-  battery: {
+  public battery: {
     power: number;
     soc: number;
     voltage: number;
@@ -70,13 +70,13 @@ export class SolisData {
 
   // Calculated values
   @Prop()
-  availableForCharging?: number;
+  public availableForCharging?: number;
 
   @Prop()
-  gridInjection?: number;
+  public gridInjection?: number;
 
   @Prop()
-  gridConsumption?: number;
+  public gridConsumption?: number;
 }
 
 export const SolisDataSchema = SchemaFactory.createForClass(SolisData);

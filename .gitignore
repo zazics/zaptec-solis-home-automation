@@ -70,3 +70,4 @@ coverage/
 .claude/
 .claude/settings.local.json
 CLAUDE.md
+zaptec-test.js

@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SolisService, SolisInverterData } from '../solis/solis.service';
 import { SolisDataService } from '../solis/solis-data.service';
-import { ZaptecService, ZaptecStatus } from '../zaptec/zaptec.service';
+import { ZaptecService } from '../zaptec/zaptec.service';
+import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 
 export interface AutomationStatus {
   enabled: boolean;
@@ -57,7 +58,7 @@ export class HomeAutomationService {
   /**
    * Automated task that runs every minute to optimize charging
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  //  @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
     if (!this.config.enabled || !this.automationEnabled) {
       return;
@@ -202,7 +203,7 @@ export class HomeAutomationService {
         availableForCharging: availablePower,
         chargingStatus: {
           active: zaptecStatus.charging,
-          current: zaptecStatus.current,
+          current: 0, // zaptecStatus.current,
           power: zaptecStatus.power,
         },
         mode: this.config.mode,

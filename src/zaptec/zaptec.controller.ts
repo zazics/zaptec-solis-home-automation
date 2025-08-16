@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, HttpException, HttpStatus, Query } from '@nestjs/common';
-import { ZaptecService, ZaptecStatus, ApiResponse } from './zaptec.service';
+import { ZaptecService } from './zaptec.service';
+import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
 
 /**
  * Controller for managing Zaptec EV charging station operations
