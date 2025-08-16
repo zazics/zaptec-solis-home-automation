@@ -9,5 +9,6 @@ import { LoggingService } from '../common/logging.service';
   imports: [SolisModule, ZaptecModule, SolisModule],
   providers: [HomeAutomationService, LoggingService],
   controllers: [HomeAutomationController],
+  exports: [HomeAutomationService]
 })
 export class HomeAutomationModule {}

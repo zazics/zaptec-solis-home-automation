@@ -3,6 +3,7 @@ import { ZaptecService } from './zaptec/zaptec.service';
 import { LoggingService } from './common/logging.service';
 import { SolisService } from './solis/solis.service';
 import { SolisDataService } from './solis/solis-data.service';
+import { HomeAutomationService } from './home-automation/home-automation.service';
 
 @Injectable()
 export class AppService implements OnModuleInit {
@@ -15,6 +16,7 @@ export class AppService implements OnModuleInit {
     private readonly zaptecService: ZaptecService,
     private readonly solisService: SolisService,
     private readonly solisDataService: SolisDataService,
+    private readonly homeAutomationService: HomeAutomationService,
     private readonly logger: LoggingService
   ) {}
 
@@ -27,12 +29,12 @@ export class AppService implements OnModuleInit {
 
   private async test(): Promise<void> {
     try {
-      //const zaptecStatus = await this.zaptecService.getChargerStatus();
-      // await this.zaptecService.setMaxCurrent(6);
-      // this.logger.log('AppService initialized with Zaptec status', this.context);
-
-      const solisData = await this.solisService.getAllData();
-      await this.solisDataService.saveData(solisData);
+      /*const zaptecStatus = await this.zaptecService.getChargerStatus();
+      await this.zaptecService.setMaxCurrent(6);
+      this.logger.log('AppService initialized with Zaptec status', this.context);*/
+      /*const solisData = await this.solisService.getAllData();
+      await this.solisDataService.saveData(solisData);*/
+      await this.homeAutomationService.runAutomation();
     } catch (error) {
       this.logger.error('Failed to test Zaptec service', error, this.context);
     }

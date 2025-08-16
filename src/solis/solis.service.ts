@@ -47,7 +47,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   private options: Required<SolisConnectionOptions>;
 
   // Delay between Modbus commands (in ms)
-  private static readonly COMMAND_DELAY = 100;
+  private static readonly COMMAND_DELAY = 50;
 
   // Solis register mapping (Modbus addresses)
   private static readonly REGISTERS = {
@@ -396,19 +396,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     // await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const pv = await this.getPVData();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const ac = await this.getACData();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const house = await this.getHouseData();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const grid = await this.getGridData();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const battery = await this.getBatteryData();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     return {
       status: { code: 1, text: 'ok' },

@@ -11,16 +11,16 @@ import { Constants } from '../constants';
 
 /**
  * Core automation service that coordinates solar energy production with EV charging
- * 
+ *
  * This service implements the main automation logic that monitors solar panel production
  * via the Solis inverter and automatically controls the Zaptec charging station to
  * optimize energy usage and maximize solar surplus utilization.
- * 
+ *
  * Automation Modes:
  * - **Surplus Mode**: Charges only when solar production exceeds house consumption
  * - **Scheduled Mode**: Time-based charging with surplus consideration
  * - **Manual Mode**: Direct control without automation
- * 
+ *
  * Features:
  * - Real-time power flow monitoring and calculation
  * - Dynamic charging current adjustment based on available surplus
@@ -29,7 +29,7 @@ import { Constants } from '../constants';
  * - Scheduled automation cycles with configurable intervals
  * - Vehicle detection and charging session management
  * - Safety thresholds and maximum power limits
- * 
+ *
  * The service runs automated cycles every 30 seconds to evaluate current conditions
  * and adjust charging parameters accordingly, ensuring optimal energy utilization
  * while respecting safety limits and user preferences.
@@ -58,7 +58,7 @@ export class HomeAutomationService implements OnModuleInit {
       minSurplusPower: Constants.AUTOMATION.MIN_SURPLUS_POWER,
       maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
       scheduledHours: Constants.AUTOMATION.SCHEDULED_HOURS,
-      priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE,
+      priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE
     };
 
     this.logger.log('Home automation service initialized with config', this.context);
@@ -67,7 +67,8 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Automated task that runs every minute to optimize charging
    */
-  //  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_HOUR)
+  //@Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
     if (!this.config.enabled || !this.automationEnabled) {
       return;
@@ -134,7 +135,7 @@ export class HomeAutomationService implements OnModuleInit {
   private async executeAutomationLogic(
     availablePower: number,
     solisData: SolisInverterData,
-    zaptecStatus: ZaptecStatus,
+    zaptecStatus: ZaptecStatus
   ): Promise<void> {
     switch (this.config.mode) {
       case 'surplus':
@@ -185,7 +186,7 @@ export class HomeAutomationService implements OnModuleInit {
       await this.zaptecService.optimizeCharging(chargingPower);
       this.logger.log(
         `Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`,
-        this.context,
+        this.context
       );
     } else if (!isScheduledHour && zaptecStatus.charging) {
       // Outside scheduled time slot
@@ -216,9 +217,9 @@ export class HomeAutomationService implements OnModuleInit {
         chargingStatus: {
           active: zaptecStatus.charging,
           current: 0, // zaptecStatus.current,
-          power: zaptecStatus.power,
+          power: zaptecStatus.power
         },
-        mode: this.config.mode,
+        mode: this.config.mode
       };
     } catch (error) {
       this.logger.error('Failed to get automation status', error, this.context);
