@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject } from '@nestjs/common';
 import { HomeAutomationService, AutomationConfig, AutomationStatus } from './home-automation.service';
 
 /**
@@ -41,7 +41,10 @@ export interface DashboardResponse {
  */
 @Controller('automation')
 export class HomeAutomationController {
-  constructor(private readonly homeAutomationService: HomeAutomationService) {}
+  @Inject(HomeAutomationService)
+  private readonly homeAutomationService: HomeAutomationService;
+
+  constructor() {}
 
   /**
    * Retrieves the current status of the automation system

@@ -1,14 +1,14 @@
-import { Controller, Get, HttpException, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Query, Inject } from '@nestjs/common';
+import { SolisService } from './solis.service';
+import { SolisDataService } from './solis-data.service';
 import {
-  SolisService,
   SolisPVData,
   SolisACData,
   SolisHouseData,
   SolisGridData,
   SolisBatteryData,
   SolisInverterData,
-} from './solis.service';
-import { SolisDataService } from './solis-data.service';
+} from './models/solis.model';
 
 /**
  * Interface for connection test response
@@ -32,10 +32,11 @@ export interface InverterStatusResponse {
  */
 @Controller('solis')
 export class SolisController {
-  constructor(
-    private readonly solisService: SolisService,
-    private readonly solisDataService: SolisDataService,
-  ) {}
+  @Inject(SolisService) private readonly solisService: SolisService;
+
+  @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
+
+  constructor() {}
 
   /**
    * Retrieves the current status of the Solis inverter

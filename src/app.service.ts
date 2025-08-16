@@ -1,25 +1,35 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit } from '@nestjs/common';
 import { ZaptecService } from './zaptec/zaptec.service';
 import { LoggingService } from './common/logging.service';
 
 @Injectable()
-export class AppService {
+export class AppService implements OnModuleInit {
   private readonly context = AppService.name;
 
   /**
    * Constructor
    */
   constructor(
-    private zaptecService: ZaptecService,
+    private readonly zaptecService: ZaptecService,
     private readonly logger: LoggingService,
-  ) {
-    this.initialize();
+  ) {}
+
+  /**
+   * Called after all dependencies have been injected and modules initialized
+   */
+  public async onModuleInit(): Promise<void> {
+    await this.test();
   }
 
-  private async initialize(): Promise<void> {
-    //const zaptecStatus = await this.zaptecService.getChargerStatus();
-    //await this.zaptecService.setMaxCurrent(6);
-    //this.logger.log('AppService initialized with Zaptec status', this.context);
+  private async test(): Promise<void> {
+    try {
+      const zaptecStatus = await this.zaptecService.getChargerStatus();
+      // await this.zaptecService.setMaxCurrent(6);
+      this.logger.log('AppService initialized with Zaptec status', this.context);
+      this.logger.debug(JSON.stringify(zaptecStatus), this.context);
+    } catch (error) {
+      this.logger.error('Failed to test Zaptec service', error, this.context);
+    }
   }
 
   public getHello(): string {

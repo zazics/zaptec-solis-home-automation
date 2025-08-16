@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ZaptecStateObservation,
@@ -10,23 +10,26 @@ import {
 import { LoggingService } from '../common/logging.service';
 
 @Injectable()
-export class ZaptecService {
+export class ZaptecService implements OnModuleInit {
   private readonly context = ZaptecService.name;
 
+  @Inject(ConfigService) private readonly configService: ConfigService;
+  @Inject(LoggingService) private readonly logger: LoggingService;
+
   // Configuration
-  private readonly baseUrl: string;
-  private readonly apiBaseUrl: string;
-  private readonly username: string;
-  private readonly password: string;
-  private readonly chargerId: string;
-  private readonly installationId: string;
+  private baseUrl: string;
+  private apiBaseUrl: string;
+  private username: string;
+  private password: string;
+  private chargerId: string;
+  private installationId: string;
 
   // Auth token
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
 
   // Solar panel max power configuration
-  private readonly maxSolarPowerWatts: number;
+  private maxSolarPowerWatts: number;
 
   // StateId constants mapping based on Zaptec constants file
   private readonly stateIdMappings = {
@@ -56,10 +59,8 @@ export class ZaptecService {
     716: 'DetectedCar', // Car detection
   };
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly logger: LoggingService,
-  ) {
+  constructor() {}
+  public onModuleInit(): void {
     this.baseUrl = this.configService.get<string>('ZAPTEC_API_URL', 'https://api.zaptec.com');
     this.apiBaseUrl = this.configService.get<string>('ZAPTEC_API_BASE_URL', 'https://api.zaptec.com/api');
     this.username = this.configService.get<string>('ZAPTEC_USERNAME', '');

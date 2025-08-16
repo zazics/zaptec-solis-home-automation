@@ -1,96 +1,24 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SerialPort } from 'serialport';
 import { ModbusRTU, ModbusFunctionCode } from '../common/modbus-rtu';
 import { LoggingService } from '../common/logging.service';
-
-/**
- * Interface for solar PV panel data
- */
-export interface SolisPVData {
-  pv1: {
-    voltage: number;
-    current: number;
-    power: number;
-  };
-  pv2: {
-    voltage: number;
-    current: number;
-    power: number;
-  };
-  totalPowerDC: number;
-}
-
-/**
- * Interface for AC power data
- */
-export interface SolisACData {
-  totalPowerAC: number;
-  frequency: number;
-  temperature: number;
-}
-
-/**
- * Interface for house consumption data
- */
-export interface SolisHouseData {
-  consumption: number;
-  backupConsumption: number;
-}
-
-/**
- * Interface for electrical grid data
- */
-export interface SolisGridData {
-  activePower: number;
-  inverterPower: number;
-  importedEnergyTotal: number;
-  exportedEnergyTotal: number;
-}
-
-/**
- * Interface for battery data
- */
-export interface SolisBatteryData {
-  power: number;
-  soc: number;
-  voltage: number;
-  current: number;
-}
-
-/**
- * Interface for complete Solis inverter data
- */
-export interface SolisInverterData {
-  status: {
-    code: number;
-    text: string;
-  };
-  timestamp: Date;
-  pv: SolisPVData;
-  ac: SolisACData;
-  house: SolisHouseData;
-  grid: SolisGridData;
-  battery: SolisBatteryData;
-}
-
-/**
- * Configuration options for Solis connection
- */
-export interface SolisConnectionOptions {
-  baudRate?: number;
-  dataBits?: 5 | 6 | 7 | 8;
-  stopBits?: 1 | 1.5 | 2;
-  parity?: 'none' | 'even' | 'mark' | 'odd' | 'space';
-  slaveId?: number;
-  responseTimeout?: number;
-  retryCount?: number;
-  retryDelay?: number;
-}
+import {
+  SolisACData,
+  SolisBatteryData,
+  SolisConnectionOptions,
+  SolisGridData,
+  SolisHouseData,
+  SolisInverterData,
+  SolisPVData,
+} from './models/solis.model';
 
 @Injectable()
 export class SolisService implements OnModuleInit, OnModuleDestroy {
   private readonly context = SolisService.name;
+
+  @Inject(ConfigService) private readonly configService: ConfigService;
+  @Inject(LoggingService) private readonly logger: LoggingService;
 
   private port: SerialPort | null = null;
   private isConnected: boolean = false;
@@ -139,10 +67,10 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     BATTERY_CURRENT: 33134,
   };
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly logger: LoggingService,
-  ) {
+  constructor() {}
+
+  public async onModuleInit(): Promise<void> {
+    this.logger.log('Initializing Solis inverter connection...', this.context);
     this.portName = this.configService.get<string>('SOLIS_PORT', 'COM2');
     this.options = {
       baudRate: this.configService.get<number>('SOLIS_BAUD_RATE', 9600),
@@ -154,10 +82,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       retryCount: this.configService.get<number>('SOLIS_RETRY_COUNT', 3),
       retryDelay: this.configService.get<number>('SOLIS_RETRY_DELAY', 500),
     };
-  }
 
-  public async onModuleInit(): Promise<void> {
-    this.logger.log('Initializing Solis inverter connection...', this.context);
     try {
       await this.connect();
       this.logger.log('Successfully connected to Solis inverter', this.context);

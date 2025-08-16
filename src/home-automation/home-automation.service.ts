@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { SolisService, SolisInverterData } from '../solis/solis.service';
+import { SolisService } from '../solis/solis.service';
 import { SolisDataService } from '../solis/solis-data.service';
 import { ZaptecService } from '../zaptec/zaptec.service';
 import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
+import { SolisInverterData } from '../solis/models/solis.model';
 
 export interface AutomationStatus {
   enabled: boolean;
@@ -31,20 +32,21 @@ export interface AutomationConfig {
 }
 
 @Injectable()
-export class HomeAutomationService {
+export class HomeAutomationService implements OnModuleInit {
   private readonly context = HomeAutomationService.name;
+  @Inject(SolisService) private readonly solisService: SolisService;
+  @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
+  @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
+  @Inject(ConfigService) private readonly configService: ConfigService;
+  @Inject(LoggingService) private readonly logger: LoggingService;
 
   private config: AutomationConfig;
   private lastAutomationRun: Date = new Date();
   private automationEnabled: boolean = true;
 
-  constructor(
-    private readonly solisService: SolisService,
-    private readonly solisDataService: SolisDataService,
-    private readonly zaptecService: ZaptecService,
-    private readonly configService: ConfigService,
-    private readonly logger: LoggingService,
-  ) {
+  constructor() {}
+
+  public onModuleInit(): void {
     this.config = {
       enabled: this.configService.get<boolean>('AUTOMATION_ENABLED', true),
       mode: this.configService.get<'surplus' | 'scheduled' | 'manual'>('AUTOMATION_MODE', 'surplus'),
@@ -55,7 +57,6 @@ export class HomeAutomationService {
     };
 
     this.logger.log('Home automation service initialized with config', this.context);
-    this.logger.debug(JSON.stringify(this.config), this.context);
   }
 
   /**

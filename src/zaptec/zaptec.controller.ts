@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, HttpException, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpException, HttpStatus, Query, Inject } from '@nestjs/common';
 import { ZaptecService } from './zaptec.service';
 import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
 
@@ -8,7 +8,10 @@ import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
  */
 @Controller('zaptec')
 export class ZaptecController {
-  constructor(private readonly zaptecService: ZaptecService) {}
+  @Inject(ZaptecService)
+  private readonly zaptecService: ZaptecService;
+
+  constructor() {}
 
   /**
    * Retrieves the current status of the Zaptec charging station

@@ -2,8 +2,8 @@ import { Injectable, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SolisData, SolisDataDocument } from './schemas/solis-data.schema';
-import { SolisInverterData } from './solis.service';
 import { LoggingService } from '../common/logging.service';
+import { SolisInverterData } from './models/solis.model';
 
 /**
  * Service for managing Solis data storage in MongoDB
@@ -13,10 +13,9 @@ import { LoggingService } from '../common/logging.service';
 export class SolisDataService {
   private readonly context = SolisDataService.name;
 
-  constructor(
-    @InjectModel(SolisData.name) private solisDataModel: Model<SolisDataDocument>,
-    private readonly logger: LoggingService,
-  ) {}
+  @Inject(LoggingService) private readonly logger: LoggingService;
+
+  constructor(@InjectModel(SolisData.name) private solisDataModel: Model<SolisDataDocument>) {}
 
   /**
    * Saves Solis inverter data to MongoDB
