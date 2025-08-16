@@ -16,6 +16,9 @@ export class ZaptecService {
   // Auth token
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
+  
+  // Solar panel max power configuration
+  private readonly maxSolarPowerWatts: number;
 
   // StateId constants mapping based on Zaptec constants file
   private readonly stateIdMappings = {
@@ -51,6 +54,7 @@ export class ZaptecService {
     this.username = this.configService.get<string>('ZAPTEC_USERNAME', '');
     this.password = this.configService.get<string>('ZAPTEC_PASSWORD', '');
     this.chargerId = this.configService.get<string>('ZAPTEC_CHARGER_ID', '');
+    this.maxSolarPowerWatts = this.configService.get<number>('MAX_SOLAR_POWER_WATTS', 5000);
   }
 
   /**
@@ -210,9 +214,10 @@ export class ZaptecService {
     // P = U * I, so I = P / U
     const maxPossibleCurrent = Math.floor(availablePower / voltage);
 
-    // Limit current between 6A (minimum for charging) and 32A (typical maximum)
+    // Limit current between 6A (minimum for charging) and calculated max from solar panels
     const minCurrent = 6;
-    const maxCurrent = 32;
+    const maxCurrentFromSolar = Math.floor(this.maxSolarPowerWatts / voltage);
+    const maxCurrent = Math.min(32, maxCurrentFromSolar); // Never exceed 32A or solar panel capacity
     const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
 
     this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`);
