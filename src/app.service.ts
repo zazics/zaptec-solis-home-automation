@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ZaptecService } from './zaptec/zaptec.service';
 import { LoggingService } from './common/logging.service';
 
@@ -17,10 +17,9 @@ export class AppService {
   }
 
   private async initialize(): Promise<void> {
-    const zaptecStatus = await this.zaptecService.getChargerStatus();
-
-    await this.zaptecService.setMaxCurrent(6);
-    this.logger.log('AppService initialized with Zaptec status', this.context);
+    //const zaptecStatus = await this.zaptecService.getChargerStatus();
+    //await this.zaptecService.setMaxCurrent(6);
+    //this.logger.log('AppService initialized with Zaptec status', this.context);
   }
 
   public getHello(): string {

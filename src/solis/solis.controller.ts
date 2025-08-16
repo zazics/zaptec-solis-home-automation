@@ -1,5 +1,13 @@
 import { Controller, Get, HttpException, HttpStatus, Query } from '@nestjs/common';
-import { SolisService, SolisPVData, SolisACData, SolisHouseData, SolisGridData, SolisBatteryData, SolisInverterData } from './solis.service';
+import {
+  SolisService,
+  SolisPVData,
+  SolisACData,
+  SolisHouseData,
+  SolisGridData,
+  SolisBatteryData,
+  SolisInverterData,
+} from './solis.service';
 import { SolisDataService } from './solis-data.service';
 
 /**
@@ -38,10 +46,7 @@ export class SolisController {
     try {
       return await this.solisService.getStatus();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get inverter status',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get inverter status', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -54,10 +59,7 @@ export class SolisController {
     try {
       return await this.solisService.getPVData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get PV data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get PV data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -70,10 +72,7 @@ export class SolisController {
     try {
       return await this.solisService.getACData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get AC data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get AC data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -86,10 +85,7 @@ export class SolisController {
     try {
       return await this.solisService.getHouseData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get house data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get house data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -102,10 +98,7 @@ export class SolisController {
     try {
       return await this.solisService.getGridData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get grid data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get grid data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -118,10 +111,7 @@ export class SolisController {
     try {
       return await this.solisService.getBatteryData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get battery data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get battery data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -134,10 +124,7 @@ export class SolisController {
     try {
       return await this.solisService.getAllData();
     } catch (error) {
-      throw new HttpException(
-        'Failed to get all inverter data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get all inverter data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -154,10 +141,7 @@ export class SolisController {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      throw new HttpException(
-        'Connection test failed',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Connection test failed', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -171,10 +155,7 @@ export class SolisController {
     try {
       const numLimit = parseInt(limit, 10);
       if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
-        throw new HttpException(
-          'Invalid limit parameter. Must be between 1 and 1000.',
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new HttpException('Invalid limit parameter. Must be between 1 and 1000.', HttpStatus.BAD_REQUEST);
       }
 
       return await this.solisDataService.getRecentData(numLimit);
@@ -182,10 +163,7 @@ export class SolisController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException(
-        'Failed to get historical data',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get historical data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -198,14 +176,11 @@ export class SolisController {
   public async getDailyStats(@Query('date') date?: string): Promise<any> {
     try {
       let targetDate = new Date();
-      
+
       if (date) {
         targetDate = new Date(date);
         if (isNaN(targetDate.getTime())) {
-          throw new HttpException(
-            'Invalid date format. Use YYYY-MM-DD.',
-            HttpStatus.BAD_REQUEST,
-          );
+          throw new HttpException('Invalid date format. Use YYYY-MM-DD.', HttpStatus.BAD_REQUEST);
         }
       }
 
@@ -214,10 +189,7 @@ export class SolisController {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new HttpException(
-        'Failed to get daily statistics',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      throw new HttpException('Failed to get daily statistics', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

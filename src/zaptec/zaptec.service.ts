@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ZaptecStateObservation,
@@ -127,7 +127,22 @@ export class ZaptecService {
       throw new Error(`API call failed: ${response.status} ${response.statusText}`);
     }
 
-    return response.json();
+    // Check if response has content and is JSON
+    const contentType = response.headers.get('content-type');
+    const contentLength = response.headers.get('content-length');
+
+    // Return empty object for empty responses or non-JSON content
+    if (contentLength === '0' || !contentType?.includes('application/json')) {
+      return {} as T;
+    }
+
+    // Try to parse JSON, return empty object if parsing fails
+    try {
+      return await response.json();
+    } catch (error) {
+      this.logger.warn('Failed to parse API response as JSON, returning empty object', this.context);
+      return {} as T;
+    }
   }
 
   /**
