@@ -1,5 +1,4 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Inject } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { SerialPort } from 'serialport';
 import { ModbusRTU, ModbusFunctionCode } from '../common/modbus-rtu';
 import { LoggingService } from '../common/logging.service';
@@ -10,8 +9,9 @@ import {
   SolisGridData,
   SolisHouseData,
   SolisInverterData,
-  SolisPVData,
+  SolisPVData
 } from './models/solis.model';
+import { Constants } from '../constants';
 
 /**
  * Service for communicating with Solis S5-EH1P5K-L solar inverter
@@ -38,7 +38,6 @@ import {
 export class SolisService implements OnModuleInit, OnModuleDestroy {
   private readonly context = SolisService.name;
 
-  @Inject(ConfigService) private readonly configService: ConfigService;
   @Inject(LoggingService) private readonly logger: LoggingService;
 
   private port: SerialPort | null = null;
@@ -85,7 +84,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     BATTERY_POWER: 33149,
     BATTERY_SOC: 33139,
     BATTERY_VOLTAGE: 33133,
-    BATTERY_CURRENT: 33134,
+    BATTERY_CURRENT: 33134
   };
 
   constructor() {}
@@ -95,16 +94,16 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async onModuleInit(): Promise<void> {
     this.logger.log('Initializing Solis inverter connection...', this.context);
-    this.portName = this.configService.get<string>('SOLIS_PORT', 'COM2');
+    this.portName = Constants.SOLIS.PORT;
     this.options = {
-      baudRate: this.configService.get<number>('SOLIS_BAUD_RATE', 9600),
-      dataBits: this.configService.get<any>('SOLIS_DATA_BITS', 8),
-      stopBits: this.configService.get<any>('SOLIS_STOP_BITS', 1),
-      parity: this.configService.get<any>('SOLIS_PARITY', 'none'),
-      slaveId: this.configService.get<number>('SOLIS_SLAVE_ID', 1),
-      responseTimeout: this.configService.get<number>('SOLIS_RESPONSE_TIMEOUT', 2000),
-      retryCount: this.configService.get<number>('SOLIS_RETRY_COUNT', 3),
-      retryDelay: this.configService.get<number>('SOLIS_RETRY_DELAY', 500),
+      baudRate: Constants.SOLIS.BAUD_RATE,
+      dataBits: Constants.SOLIS.DATA_BITS,
+      stopBits: Constants.SOLIS.STOP_BITS,
+      parity: Constants.SOLIS.PARITY,
+      slaveId: Constants.SOLIS.SLAVE_ID,
+      responseTimeout: Constants.SOLIS.RESPONSE_TIMEOUT,
+      retryCount: Constants.SOLIS.RETRY_COUNT,
+      retryDelay: Constants.SOLIS.RETRY_DELAY
     };
 
     try {
@@ -131,7 +130,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       baudRate: this.options.baudRate,
       dataBits: this.options.dataBits,
       stopBits: this.options.stopBits,
-      parity: this.options.parity,
+      parity: this.options.parity
     });
 
     return new Promise((resolve, reject) => {
@@ -175,7 +174,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       this.options.slaveId,
       ModbusFunctionCode.READ_INPUT_REGISTERS,
       startAddr,
-      quantity,
+      quantity
     );
 
     return new Promise((resolve, reject) => {
@@ -252,14 +251,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       pv1: {
         voltage: pv1V,
         current: pv1A,
-        power: pv1V * pv1A,
+        power: pv1V * pv1A
       },
       pv2: {
         voltage: pv2V,
         current: pv2A,
-        power: pv2V * pv2A,
+        power: pv2V * pv2A
       },
-      totalPowerDC,
+      totalPowerDC
     };
   }
 
@@ -276,7 +275,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     return {
       totalPowerAC: ((powerRegs[0] || 0) / 100) * 1000,
       frequency: 50,
-      temperature: (tempRegs[0] || 0) / 10,
+      temperature: (tempRegs[0] || 0) / 10
     };
   }
 
@@ -292,7 +291,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
     return {
       consumption: consumption[0] || 0,
-      backupConsumption: backupConsumption[0] || 0,
+      backupConsumption: backupConsumption[0] || 0
     };
   }
 
@@ -323,7 +322,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       activePower,
       inverterPower,
       importedEnergyTotal: importedEnergy,
-      exportedEnergyTotal: exportedEnergy,
+      exportedEnergyTotal: exportedEnergy
     };
   }
 
@@ -349,11 +348,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       power: batteryPower,
       soc: socRegs[0] || 0,
       voltage: (voltageRegs[0] || 0) / 10,
-      current: (currentRegs[0] || 0) / 10,
+      current: (currentRegs[0] || 0) / 10
     };
   }
 
   /**
+   * TODO: find right status registers
    * Retrieves inverter status
    */
   public async getStatus(): Promise<{ code: number; text: string }> {
@@ -364,7 +364,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.debug(
         `Status register ${SolisService.REGISTERS.STATUS}: ${statusCode} (0x${statusCode.toString(16)})`,
-        this.context,
+        this.context
       );
 
       // Updated status mapping based on Solis documentation
@@ -374,12 +374,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
         2: 'Normal',
         3: 'Alarm',
         4: 'Fault',
-        8: 'Fault',
+        8: 'Fault'
       };
 
       return {
         code: statusCode,
-        text: statusMap[statusCode] || `Unknown (${statusCode}, 0x${statusCode.toString(16)})`,
+        text: statusMap[statusCode] || `Unknown (${statusCode}, 0x${statusCode.toString(16)})`
       };
     } catch (error) {
       this.logger.error('Failed to read status registers', error, this.context);
@@ -391,8 +391,9 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    * Retrieves all inverter data at once
    */
   public async getAllData(): Promise<SolisInverterData> {
-    const status = await this.getStatus();
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    // TODO: find right status registers
+    // const status = await this.getStatus();
+    // await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     const pv = await this.getPVData();
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
@@ -410,13 +411,13 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
     return {
-      status,
+      status: { code: 1, text: 'ok' },
       timestamp: new Date(),
       pv,
       ac,
       house,
       grid,
-      battery,
+      battery
     };
   }
 

@@ -1,5 +1,4 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SolisService } from '../solis/solis.service';
 import { SolisDataService } from '../solis/solis-data.service';
@@ -8,6 +7,7 @@ import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 import { SolisInverterData } from '../solis/models/solis.model';
 import { AutomationConfig, AutomationStatus } from './models/home-automation.model';
+import { Constants } from '../constants';
 
 /**
  * Core automation service that coordinates solar energy production with EV charging
@@ -40,7 +40,6 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(SolisService) private readonly solisService: SolisService;
   @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
   @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
-  @Inject(ConfigService) private readonly configService: ConfigService;
   @Inject(LoggingService) private readonly logger: LoggingService;
 
   private config: AutomationConfig;
@@ -54,12 +53,12 @@ export class HomeAutomationService implements OnModuleInit {
    */
   public onModuleInit(): void {
     this.config = {
-      enabled: this.configService.get<boolean>('AUTOMATION_ENABLED', true),
-      mode: this.configService.get<'surplus' | 'scheduled' | 'manual'>('AUTOMATION_MODE', 'surplus'),
-      minSurplusPower: this.configService.get<number>('MIN_SURPLUS_POWER', 500), // 500W minimum
-      maxChargingPower: this.configService.get<number>('MAX_CHARGING_POWER', 7360), // 32A * 230V
-      scheduledHours: this.configService.get<string>('SCHEDULED_HOURS', '10,11,12,13,14,15,16').split(','),
-      priorityLoadReserve: this.configService.get<number>('PRIORITY_LOAD_RESERVE', 500), // 500W reserve
+      enabled: Constants.AUTOMATION.ENABLED,
+      mode: Constants.AUTOMATION.MODE,
+      minSurplusPower: Constants.AUTOMATION.MIN_SURPLUS_POWER,
+      maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
+      scheduledHours: Constants.AUTOMATION.SCHEDULED_HOURS,
+      priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE,
     };
 
     this.logger.log('Home automation service initialized with config', this.context);

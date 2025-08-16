@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Constants } from '../constants';
 
 /**
  * Centralized logging service for the entire application
@@ -33,9 +33,9 @@ export class LoggingService {
   private readonly logDir: string;
   private readonly appName: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.logDir = this.configService.get<string>('LOG_DIR', 'logs');
-    this.appName = this.configService.get<string>('APP_NAME', 'zaptec-solis-automation');
+  constructor() {
+    this.logDir = Constants.LOGGING.LOG_DIR;
+    this.appName = Constants.LOGGING.APP_NAME;
     
     // Ensure log directory exists
     if (!fs.existsSync(this.logDir)) {

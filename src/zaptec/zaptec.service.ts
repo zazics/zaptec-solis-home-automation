@@ -1,5 +1,4 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   ZaptecStateObservation,
   ZaptecStatus,
@@ -8,6 +7,7 @@ import {
   ZaptecInstallationUpdateRequest,
 } from './models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
+import { Constants } from '../constants';
 
 /**
  * Service for managing Zaptec EV charging station operations
@@ -27,7 +27,6 @@ import { LoggingService } from '../common/logging.service';
 export class ZaptecService implements OnModuleInit {
   private readonly context = ZaptecService.name;
 
-  @Inject(ConfigService) private readonly configService: ConfigService;
   @Inject(LoggingService) private readonly logger: LoggingService;
 
   // Configuration
@@ -79,13 +78,13 @@ export class ZaptecService implements OnModuleInit {
    * Module initialization
    */
   public onModuleInit(): void {
-    this.baseUrl = this.configService.get<string>('ZAPTEC_API_URL', 'https://api.zaptec.com');
-    this.apiBaseUrl = this.configService.get<string>('ZAPTEC_API_BASE_URL', 'https://api.zaptec.com/api');
-    this.username = this.configService.get<string>('ZAPTEC_USERNAME', '');
-    this.password = this.configService.get<string>('ZAPTEC_PASSWORD', '');
-    this.chargerId = this.configService.get<string>('ZAPTEC_CHARGER_ID', '');
-    this.installationId = this.configService.get<string>('ZAPTEC_INSTALLATION_ID', '');
-    this.maxSolarPowerWatts = this.configService.get<number>('MAX_SOLAR_POWER_WATTS', 5000);
+    this.baseUrl = Constants.ZAPTEC.API_BASE_URL;
+    this.apiBaseUrl = `${Constants.ZAPTEC.API_BASE_URL}/api`;
+    this.username = Constants.ZAPTEC.USERNAME;
+    this.password = Constants.ZAPTEC.PASSWORD;
+    this.chargerId = Constants.ZAPTEC.CHARGER_ID;
+    this.installationId = process.env.ZAPTEC_INSTALLATION_ID || '';
+    this.maxSolarPowerWatts = process.env.MAX_SOLAR_POWER_WATTS ? parseInt(process.env.MAX_SOLAR_POWER_WATTS) : 5000;
   }
 
   /**
