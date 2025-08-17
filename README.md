@@ -1,6 +1,6 @@
 # Zaptec-Solis Home Automation
 
-NestJS application to control a Zaptec charging station based on information from a Solis inverter via RS485 communication.
+A comprehensive NestJS application that intelligently controls Zaptec EV charging stations based on real-time solar energy production data from Solis inverters. The system optimizes charging to maximize the use of surplus solar energy while maintaining grid stability and respecting user preferences.
 
 ## Installation
 
@@ -15,6 +15,12 @@ NestJS application to control a Zaptec charging station based on information fro
    ```bash
    cp .env.example .env
    # Edit .env with your specific configuration
+   ```
+
+4. For development/testing without hardware:
+   ```bash
+   # Enable simulation mode in .env
+   echo "SOLIS_SIMULATE_DATA=true" >> .env
    ```
 
 ## Hardware Configuration
@@ -36,20 +42,48 @@ Configure the following variables in your `.env` file:
 #### Solis Inverter Settings
 
 - `SOLIS_PORT=/dev/ttyACM0` - USB port where Waveshare module is connected on Raspberry Pi
-- `SOLIS_BAUD_RATE=9600` - Communication speed
-- `SOLIS_SLAVE_ID=1` - Modbus slave ID
+- `SOLIS_BAUD_RATE=9600` - Communication speed (default: 9600)
+- `SOLIS_DATA_BITS=8` - Data bits (default: 8)
+- `SOLIS_STOP_BITS=1` - Stop bits (default: 1)
+- `SOLIS_PARITY=none` - Parity setting (default: none)
+- `SOLIS_SLAVE_ID=1` - Modbus slave ID (default: 1)
+- `SOLIS_RESPONSE_TIMEOUT=2000` - Response timeout in ms (default: 2000)
+- `SOLIS_RETRY_COUNT=3` - Number of retries for failed communications (default: 3)
+- `SOLIS_RETRY_DELAY=500` - Delay between retries in ms (default: 500)
+- `SOLIS_SIMULATE_DATA=false` - Enable simulation mode for testing (default: false)
 
 #### Zaptec Settings
 
 - `ZAPTEC_USERNAME` - Your Zaptec account username
 - `ZAPTEC_PASSWORD` - Your Zaptec account password
 - `ZAPTEC_CHARGER_ID` - Your charger's unique ID
+- `ZAPTEC_API_BASE_URL=https://api.zaptec.com` - Zaptec API base URL (default: https://api.zaptec.com)
+- `ZAPTEC_CLIENT_ID=Zaptec App` - OAuth client ID (default: Zaptec App)
 
 #### Automation Settings
 
-- `AUTOMATION_MODE=surplus` - Control mode (surplus/scheduled/manual)
-- `MIN_SURPLUS_POWER=1500` - Minimum solar surplus to start charging (W)
-- `MAX_CHARGING_POWER=7360` - Maximum charging power (W)
+- `AUTOMATION_ENABLED=true` - Enable/disable automation (default: true)
+- `AUTOMATION_MODE=surplus` - Control mode: surplus/scheduled/manual (default: surplus)
+- `MIN_SURPLUS_POWER=500` - Minimum solar surplus to start charging in W (default: 500)
+- `MAX_CHARGING_POWER=7360` - Maximum charging power in W (default: 7360)
+- `SCHEDULED_HOURS=10,11,12,13,14,15,16` - Hours for scheduled mode (default: 10-16)
+- `PRIORITY_LOAD_RESERVE=500` - Power reserve for priority loads in W (default: 500)
+- `MONGODB_SAVE_FREQUENCY=3` - Save data to MongoDB every N cycles (default: 3)
+
+#### Database Settings
+
+- `MONGODB_URI=mongodb://localhost:27017/zaptec-solis` - MongoDB connection string
+
+#### Server Settings
+
+- `PORT=3000` - HTTP server port (default: 3000)
+- `NODE_ENV=development` - Node environment (development/production)
+
+#### Logging Settings
+
+- `LOG_DIR=logs` - Directory for log files (default: logs)
+- `APP_NAME=zaptec-solis-automation` - Application name for logs
+- `LOG_LEVEL=INFO` - Logging level: DEBUG/INFO/WARN/ERROR (default: INFO)
 
 ## Usage
 
@@ -68,40 +102,147 @@ npm run start:prod
 
 ### API Endpoints
 
-The application provides REST API endpoints:
+The application provides comprehensive REST API endpoints:
 
 #### Solis Inverter Data
 
-- `GET /solis/status` - Get inverter status
-- `GET /solis/pv` - Get solar panel data
-- `GET /solis/battery` - Get battery information
-- `GET /solis/all` - Get all inverter data
+- `GET /solis/status` - Get inverter connection and operational status
+- `GET /solis/pv` - Get solar panel production data (voltage, current, power)
+- `GET /solis/battery` - Get battery information (SOC, power, voltage)
+- `GET /solis/grid` - Get grid interaction data (import/export power)
+- `GET /solis/house` - Get household consumption data
+- `GET /solis/ac` - Get AC output data (frequency, temperature)
+- `GET /solis/all` - Get complete inverter data in single request
 
 #### Zaptec Control
 
-- `GET /zaptec/status` - Get charging station status
-- `POST /zaptec/current` - Set maximum charging current
-- `POST /zaptec/charging` - Enable/disable charging
+- `GET /zaptec/status` - Get charging station status and capabilities
+- `GET /zaptec/installation` - Get installation-level information
+- `GET /zaptec/history?days=7` - Get charging session history
+- `POST /zaptec/current` - Set maximum available charging current
+- `POST /zaptec/charging` - Enable/disable charging session
+- `POST /zaptec/optimize` - Optimize charging based on available power
+- `GET /zaptec/test` - Test connectivity with Zaptec cloud API
 
 #### Home Automation
 
-- `GET /automation/status` - Get automation system status
-- `GET /automation/dashboard` - Get complete dashboard data
+- `GET /automation/status` - Get complete automation system status
+- `GET /automation/config` - Get current automation configuration
+- `GET /automation/dashboard` - Get dashboard data with all metrics
 - `POST /automation/enable` - Enable automatic control
 - `POST /automation/disable` - Disable automatic control
-- `PUT /automation/config` - Update automation settings
+- `PUT /automation/config` - Update automation configuration
+- `POST /automation/run` - Manually trigger automation cycle
+
+#### Example API Responses
+
+**GET /automation/status**
+```json
+{
+  "enabled": true,
+  "lastUpdate": "2024-01-15T10:30:00Z",
+  "solarProduction": 3500,
+  "houseConsumption": 1200,
+  "availableForCharging": 1800,
+  "chargingStatus": {
+    "active": true,
+    "current": 8,
+    "power": 1840
+  },
+  "mode": "surplus"
+}
+```
+
+**GET /solis/all**
+```json
+{
+  "status": { "code": 1, "text": "ok" },
+  "timestamp": "2024-01-15T10:30:00Z",
+  "pv": {
+    "pv1": { "voltage": 385.2, "current": 4.2, "power": 1618 },
+    "pv2": { "voltage": 382.1, "current": 4.1, "power": 1567 },
+    "totalPowerDC": 3185
+  },
+  "ac": {
+    "totalPowerAC": 3026,
+    "frequency": 50.02,
+    "temperature": 32.1
+  },
+  "house": { "consumption": 1250 },
+  "grid": { "activePower": 1776, "inverterPower": 3026 },
+  "battery": { "power": -450, "soc": 78, "voltage": 49.2 }
+}
+```
 
 ## Features
 
-- **Real-time Monitoring**: Continuous monitoring of Solis S5-EH1P5K-L inverter via RS485
-- **Smart Charging**: Automatic Zaptec charging station control based on solar surplus
-- **Multiple Modes**:
-  - Surplus mode: Charge only when solar surplus available
-  - Scheduled mode: Charge during specific hours with surplus
-  - Manual mode: Full manual control
-- **REST API**: Complete HTTP API for external integrations
-- **Configurable**: Extensive configuration options via environment variables
-- **Logging**: Comprehensive logging for monitoring and debugging
+### Core Functionality
+- **Real-time Monitoring**: Continuous monitoring of Solis S5-EH1P5K-L inverter via RS485/Modbus RTU
+- **Smart Charging**: Intelligent Zaptec charging station control based on solar energy surplus
+- **Data Logging**: Historical data storage in MongoDB with configurable frequency
+- **Simulation Mode**: Built-in data simulation for testing and development
+
+### Automation Modes
+- **Surplus Mode**: Charge only when solar production exceeds household consumption
+- **Scheduled Mode**: Time-based charging during specified hours with surplus consideration
+- **Manual Mode**: Complete manual control without automation
+
+### Technical Features
+- **REST API**: Comprehensive HTTP API for external integrations and monitoring
+- **OAuth2 Authentication**: Secure communication with Zaptec cloud API
+- **Configurable Parameters**: Extensive configuration via environment variables
+- **Error Handling**: Robust error handling with automatic retries and fallbacks
+- **Real-time Calculations**: Dynamic power flow analysis and charging optimization
+- **Safety Limits**: Configurable power thresholds and safety reserves
+- **Comprehensive Logging**: Multi-level logging with file-based persistence
+
+### Integration Capabilities
+- **Modbus RTU Communication**: Direct hardware communication with solar inverters
+- **Cloud API Integration**: Seamless integration with Zaptec charging infrastructure
+- **MongoDB Storage**: Scalable data storage for analytics and historical tracking
+- **RESTful Architecture**: Standard HTTP endpoints for easy integration
+
+## Development & Testing
+
+### Simulation Mode
+
+For development and testing without physical hardware, enable simulation mode:
+
+```bash
+# Enable simulation in .env file
+SOLIS_SIMULATE_DATA=true
+```
+
+Simulation provides realistic data scenarios:
+- **High Power**: 4.5kW production, 800W consumption (3.2kW surplus)
+- **Medium Power**: 2.2kW production, 1.2kW consumption (600W surplus)
+- **Low Power**: 800W production, 1.1kW consumption (200W deficit)
+- **No Power**: 0W production, 950W consumption (800W deficit)
+
+### Development Commands
+
+```bash
+# Development with hot reload
+npm run start:dev
+
+# Build the application
+npm run build
+
+# Production mode
+npm run start:prod
+
+# Linting (auto-fix enabled)
+npm run lint
+
+# Testing
+npm test                 # Run all tests
+npm run test:watch      # Run tests in watch mode
+npm run test:cov        # Run tests with coverage
+npm run test:e2e        # Run end-to-end tests
+
+# Code formatting
+npm run format
+```
 
 ## Troubleshooting
 
@@ -111,6 +252,7 @@ The application provides REST API endpoints:
 - Check that the module appears as `/dev/ttyACM0` using `ls /dev/tty*`
 - Ensure no other applications are using `/dev/ttyACM0`
 - Check USB connection and try different USB ports if needed
+- Try simulation mode first: `SOLIS_SIMULATE_DATA=true`
 
 ### Communication Problems
 
@@ -121,6 +263,14 @@ The application provides REST API endpoints:
 - Check Solis S5-EH1P5K-L inverter power and Modbus settings
 - Confirm baud rate (9600) and communication parameters match inverter configuration
 - Test RS485 communication with a multimeter if available
+- Check retry settings: `SOLIS_RETRY_COUNT` and `SOLIS_RETRY_DELAY`
+
+### Authentication Issues
+
+- Verify Zaptec credentials are correct
+- Check API base URL configuration
+- Ensure charger ID is valid and accessible with your account
+- Check network connectivity to Zaptec cloud services
 
 ### Permission Errors
 
@@ -130,3 +280,35 @@ The application provides REST API endpoints:
   # Logout and login again
   ```
 - Check port permissions: `ls -l /dev/ttyACM0`
+
+### Database Issues
+
+- Verify MongoDB is running and accessible
+- Check MongoDB URI configuration
+- Ensure database permissions are correct
+- Adjust save frequency if needed: `MONGODB_SAVE_FREQUENCY`
+
+## Architecture
+
+### Module Structure
+
+- **SolisModule**: Handles RS485/Modbus communication with the Solis inverter
+- **ZaptecModule**: Manages API communication with Zaptec charging station
+- **HomeAutomationModule**: Core automation logic coordinating between services
+- **CommonModule**: Shared utilities including logging and configuration
+
+### Data Flow
+
+1. **Data Collection**: SolisService reads inverter data via RS485/Modbus RTU
+2. **Power Calculation**: HomeAutomationService calculates available surplus power
+3. **Decision Making**: Automation logic determines optimal charging parameters
+4. **Control Execution**: ZaptecService adjusts charging station via cloud API
+5. **Data Persistence**: Selected cycles save data to MongoDB for analysis
+
+### Configuration Management
+
+The application uses a centralized Constants class with dotenv for configuration:
+- Type-safe environment variable handling with lodash conversions
+- Grouped configuration by module (SOLIS, ZAPTEC, AUTOMATION, etc.)
+- Default values for all parameters
+- Runtime configuration validation
