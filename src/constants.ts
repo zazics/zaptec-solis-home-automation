@@ -43,6 +43,10 @@ export class Constants {
 
     get RETRY_DELAY(): number {
       return _.toNumber(process.env.SOLIS_RETRY_DELAY) || 500;
+    },
+
+    get SIMULATE_DATA(): boolean {
+      return process.env.SOLIS_SIMULATE_DATA === 'true';
     }
   };
 
@@ -97,6 +101,10 @@ export class Constants {
 
     get PRIORITY_LOAD_RESERVE(): number {
       return _.toNumber(process.env.PRIORITY_LOAD_RESERVE) || 500;
+    },
+
+    get MONGODB_SAVE_FREQUENCY(): number {
+      return _.toNumber(process.env.MONGODB_SAVE_FREQUENCY) || 3;
     }
   };
 

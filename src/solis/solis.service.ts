@@ -388,9 +388,115 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Generates simulated inverter data for testing purposes
+   */
+  private generateSimulatedData(): SolisInverterData {
+    const scenarios = [
+      // Full Powa!
+      {
+        name: 'Full Power',
+        pvTotalPowerDC: 5500, // 5.5kW production
+        houseConsumption: 500, // 500W consommation maison
+        gridActivePower: 5000, // 5kW injection vers réseau
+        batteryPower: 0, // 0W charge batterie
+        batterySoc: 100
+      },
+      // Beaucoup de puissance disponible (journée ensoleillée)
+      {
+        name: 'High Power',
+        pvTotalPowerDC: 4500, // 4.5kW production
+        houseConsumption: 800, // 800W consommation maison
+        gridActivePower: 3200, // 3.2kW injection vers réseau
+        batteryPower: -500, // 500W charge batterie
+        batterySoc: 85
+      },
+      // Puissance moyenne (journée nuageuse)
+      {
+        name: 'Medium Power',
+        pvTotalPowerDC: 2200, // 2.2kW production
+        houseConsumption: 1200, // 1.2kW consommation maison
+        gridActivePower: 600, // 600W injection vers réseau
+        batteryPower: -400, // 400W charge batterie
+        batterySoc: 65
+      },
+      // Peu de puissance disponible (fin d'après-midi)
+      {
+        name: 'Low Power',
+        pvTotalPowerDC: 800, // 800W production
+        houseConsumption: 1100, // 1.1kW consommation maison
+        gridActivePower: -200, // 200W tirage du réseau
+        batteryPower: 100, // 100W décharge batterie
+        batterySoc: 45
+      },
+      // Pas de puissance disponible (nuit/très nuageux)
+      {
+        name: 'No Power',
+        pvTotalPowerDC: 0, // Pas de production
+        houseConsumption: 500, // 500W consommation maison
+        gridActivePower: -100, // 100W tirage du réseau
+        batteryPower: 400, // 150W décharge batterie
+        batterySoc: 25
+      }
+    ];
+
+    // Sélection aléatoire d'un scénario
+    const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+
+    this.logger.debug(`Simulating scenario: ${scenario.name}`, this.context);
+
+    return {
+      status: { code: 1, text: 'simulated' },
+      timestamp: new Date(),
+      pv: {
+        pv1: {
+          voltage: 380 + Math.random() * 20, // 380-400V
+          current: scenario.pvTotalPowerDC > 0 ? scenario.pvTotalPowerDC / 2 / 390 : 0,
+          power: scenario.pvTotalPowerDC / 2
+        },
+        pv2: {
+          voltage: 375 + Math.random() * 25, // 375-400V
+          current: scenario.pvTotalPowerDC > 0 ? scenario.pvTotalPowerDC / 2 / 385 : 0,
+          power: scenario.pvTotalPowerDC / 2
+        },
+        totalPowerDC: scenario.pvTotalPowerDC
+      },
+      ac: {
+        totalPowerAC: scenario.pvTotalPowerDC * 0.95, // 95% efficiency
+        frequency: 50,
+        temperature: 25 + Math.random() * 15 // 25-40°C
+      },
+      house: {
+        consumption: scenario.houseConsumption,
+        backupConsumption: 0
+      },
+      grid: {
+        activePower: scenario.gridActivePower,
+        inverterPower: scenario.pvTotalPowerDC * 0.95,
+        importedEnergyTotal: 1500 + Math.random() * 500, // kWh cumulé
+        exportedEnergyTotal: 800 + Math.random() * 300 // kWh cumulé
+      },
+      battery: {
+        power: scenario.batteryPower,
+        soc: scenario.batterySoc,
+        voltage: 48.2 + Math.random() * 1.8, // 48-50V
+        current: Math.abs(scenario.batteryPower) / 49
+      }
+    };
+  }
+
+  /**
    * Retrieves all inverter data at once
    */
   public async getAllData(): Promise<SolisInverterData> {
+    // Si simulation activée, retourner des données simulées
+    if (Constants.SOLIS.SIMULATE_DATA) {
+      return this.generateSimulatedData();
+    }
+
+    if (!this.isConnected || !this.port) {
+      throw new Error('Not connected to inverter');
+    }
+
     // TODO: find right status registers
     // const status = await this.getStatus();
     // await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));

@@ -45,6 +45,7 @@ export class HomeAutomationService implements OnModuleInit {
   private config: AutomationConfig;
   private lastAutomationRun: Date = new Date();
   private automationEnabled: boolean = true;
+  private automationRunCounter: number = 0;
 
   constructor() {}
 
@@ -80,20 +81,17 @@ export class HomeAutomationService implements OnModuleInit {
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
 
-      // Store Solis data in MongoDB for historical analysis
-      try {
-        await this.solisDataService.saveData(solisData);
-        this.logger.debug('Solis data saved to MongoDB', this.context);
-      } catch (mongoError) {
-        this.logger.warn('Failed to save Solis data to MongoDB', this.context);
-        // Continue with automation even if MongoDB save fails
+      // Store Solis data in MongoDB for historical analysis (according to frequency set)
+      if (this.automationRunCounter % Constants.AUTOMATION.MONGODB_SAVE_FREQUENCY === 0) {
+        await this.saveDataToMongoDB(solisData);
       }
+      this.automationRunCounter++;
+
+      // Calculate available power (for charging or ...)
+      const availablePower = this.calculateAvailablePower(solisData);
 
       // Retrieve Zaptec charging station status
       const zaptecStatus = await this.zaptecService.getChargerStatus();
-
-      // Calculate available power for charging
-      const availablePower = this.calculateAvailablePower(solisData);
 
       // Execute automation logic according to mode
       await this.executeAutomationLogic(availablePower, solisData, zaptecStatus);
@@ -163,7 +161,7 @@ export class HomeAutomationService implements OnModuleInit {
       await this.zaptecService.optimizeCharging(chargingPower);
       this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`, this.context);
     } else if (availablePower < this.config.minSurplusPower && zaptecStatus.charging) {
-      // Pas assez de surplus et en cours de charge
+      //not enough surplus and charging
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Surplus mode: Stopping charging - insufficient surplus', this.context);
     } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
@@ -255,6 +253,25 @@ export class HomeAutomationService implements OnModuleInit {
       } catch (error) {
         this.logger.error('Failed to stop charging when disabling automation', error, this.context);
       }
+    }
+  }
+
+  /**
+   * Saves data to MongoDB according to configured frequency
+   */
+  private async saveDataToMongoDB(solisData: SolisInverterData): Promise<void> {
+    try {
+      await this.solisDataService.saveData(solisData);
+      this.logger.debug(
+        `Solis data saved to MongoDB (run ${this.automationRunCounter}/${Constants.AUTOMATION.MONGODB_SAVE_FREQUENCY})`,
+        this.context
+      );
+    } catch (mongoError) {
+      this.logger.warn(
+        `Failed to save data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
+        this.context
+      );
+      // Continue with automation even if MongoDB save fails
     }
   }
 

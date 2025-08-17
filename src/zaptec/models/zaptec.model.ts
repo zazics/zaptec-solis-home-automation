@@ -6,7 +6,7 @@ export interface ZaptecStatus {
   power?: number; // Watts
   totalPower?: number;
   vehicleConnected?: boolean;
-  operatingMode?: number; // ChargerOperationMode value
+  operatingMode?: number; // ChargerOperationMode:0=Unknown, 1=Disconnected, 2=Connected_Requesting, 3=Connected_Charging, 5=Connected_Finished
   deviceType?: number; // Device type from API
   serialNo?: string; // Serial number
 }
