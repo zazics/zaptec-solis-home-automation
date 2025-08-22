@@ -105,6 +105,10 @@ export class Constants {
 
     get MONGODB_SAVE_FREQUENCY(): number {
       return _.toNumber(process.env.MONGODB_SAVE_FREQUENCY) || 3;
+    },
+
+    get HIGH_CONSUMPTION_REDUCTION_PERCENT(): number {
+      return _.toNumber(process.env.HIGH_CONSUMPTION_REDUCTION_PERCENT) || 2;
     }
   };
 
@@ -144,6 +148,18 @@ export class Constants {
 
     get NODE_ENV(): string {
       return process.env.NODE_ENV || 'development';
+    }
+  };
+
+  /**
+   * Power System Constants
+   */
+  public static POWER = {
+    /**
+     * Maximum inverter power capacity in watts (Solis S5-EH1P5K-L)
+     */
+    get INVERTER_MAX_POWER(): number {
+      return 5000;
     }
   };
 }

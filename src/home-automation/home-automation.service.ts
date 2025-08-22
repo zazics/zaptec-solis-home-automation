@@ -106,7 +106,7 @@ export class HomeAutomationService implements OnModuleInit {
    * Calculates available power for charging based on Solis data and current charging status
    */
   private calculateAvailablePower(solisData: SolisInverterData, zaptecStatus: ZaptecStatus): number {
-    const solarProduction = Math.min(solisData.pv.totalPowerDC, 5000); // Max 5kW inverter capacity
+    const solarProduction = Math.min(solisData.pv.totalPowerDC, Constants.POWER.INVERTER_MAX_POWER);
     const houseConsumption = solisData.house.consumption;
     const batterySoc = solisData.battery.soc; // State of charge in %
     const currentChargingPower = zaptecStatus.charging ? zaptecStatus.power || 0 : 0;
@@ -135,11 +135,31 @@ export class HomeAutomationService implements OnModuleInit {
     }
 
     // Apply priority load reserve
-    const totalAvailablePower = Math.max(0, basePowerAvailable - this.config.priorityLoadReserve);
+    let totalAvailablePower = Math.max(0, basePowerAvailable - this.config.priorityLoadReserve);
+
+    // High consumption reduction: if total house consumption > inverter max power, reduce available power
+    if (houseConsumption > Constants.POWER.INVERTER_MAX_POWER) {
+      const reductionPercent = Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT / 100;
+      const reductionAmount = totalAvailablePower * reductionPercent;
+      totalAvailablePower = Math.max(0, totalAvailablePower - reductionAmount);
+      this.logger.debug(
+        `High consumption detected (${houseConsumption}W > ${Constants.POWER.INVERTER_MAX_POWER}W), ` +
+        `reducing available power by ${Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT}% (${reductionAmount}W)`,
+        this.context
+      );
+    }
 
     // If current charging exceeds solar production, limit to solar production only
     if (currentChargingPower > solarProduction) {
-      const limitedPower = Math.max(0, solarProduction - this.config.priorityLoadReserve);
+      let limitedPower = Math.max(0, solarProduction - this.config.priorityLoadReserve);
+      
+      // Apply high consumption reduction to limited power as well
+      if (houseConsumption > Constants.POWER.INVERTER_MAX_POWER) {
+        const reductionPercent = Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT / 100;
+        const reductionAmount = limitedPower * reductionPercent;
+        limitedPower = Math.max(0, limitedPower - reductionAmount);
+      }
+      
       this.logger.debug(
         `Current charging (${currentChargingPower}W) exceeds solar production (${solarProduction}W), ` +
           `limiting to solar production: ${limitedPower}W`,
