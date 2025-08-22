@@ -62,7 +62,7 @@ export class HomeAutomationService implements OnModuleInit {
       priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE
     };
 
-    this.logger.log('Home automation service initialized with config', this.context);
+    this.logger.log(`Home automation service initialized with config ${JSON.stringify(this.config)}`, this.context);
   }
 
   /**
