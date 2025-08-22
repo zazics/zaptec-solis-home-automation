@@ -18,11 +18,11 @@ export class Constants {
     },
 
     get DATA_BITS(): 8 | 7 | 6 | 5 {
-      return _.toNumber(process.env.SOLIS_DATA_BITS) as 8 | 7 | 6 | 5 || 8;
+      return (_.toNumber(process.env.SOLIS_DATA_BITS) as 8 | 7 | 6 | 5) || 8;
     },
 
     get STOP_BITS(): 1 | 2 {
-      return _.toNumber(process.env.SOLIS_STOP_BITS) as 1 | 2 || 1;
+      return (_.toNumber(process.env.SOLIS_STOP_BITS) as 1 | 2) || 1;
     },
 
     get PARITY(): 'none' | 'even' | 'mark' | 'odd' | 'space' {
@@ -88,7 +88,7 @@ export class Constants {
     },
 
     get MIN_SURPLUS_POWER(): number {
-      return _.toNumber(process.env.MIN_SURPLUS_POWER) || 500;
+      return _.toNumber(process.env.MIN_SURPLUS_POWER);
     },
 
     get MAX_CHARGING_POWER(): number {
@@ -100,7 +100,7 @@ export class Constants {
     },
 
     get PRIORITY_LOAD_RESERVE(): number {
-      return _.toNumber(process.env.PRIORITY_LOAD_RESERVE) || 500;
+      return _.toNumber(process.env.PRIORITY_LOAD_RESERVE);
     },
 
     get MONGODB_SAVE_FREQUENCY(): number {

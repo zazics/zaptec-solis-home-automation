@@ -84,7 +84,8 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     BATTERY_POWER: 33149,
     BATTERY_SOC: 33139,
     BATTERY_VOLTAGE: 33133,
-    BATTERY_CURRENT: 33134
+    BATTERY_CURRENT: 33134,
+    BATTERY_CURRENT_DIRECTION: 33135
   };
 
   constructor() {}
@@ -342,7 +343,14 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     const currentRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_CURRENT);
     await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
 
-    const batteryPower = batteryPowerRegs.length >= 2 ? (batteryPowerRegs[0]! << 16) | batteryPowerRegs[1]! : 0;
+    const directionRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_CURRENT_DIRECTION);
+    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+
+    const batteryPowerRaw = batteryPowerRegs.length >= 2 ? (batteryPowerRegs[0]! << 16) | batteryPowerRegs[1]! : 0;
+    const direction = directionRegs[0] || 0; // 0=charge, 1=discharge
+    
+    // Apply sign based on direction: negative for charging, positive for discharging
+    const batteryPower = direction === 1 ? batteryPowerRaw : -batteryPowerRaw;
 
     return {
       power: batteryPower,

@@ -4,9 +4,10 @@ export interface ZaptecStatus {
   online?: boolean;
   charging?: boolean;
   power?: number; // Watts
-  totalPower?: number;
+  totalPower?: number; // W
+  ChargeCurrentSet?: number; // A
   vehicleConnected?: boolean;
-  operatingMode?: number; // ChargerOperationMode:0=Unknown, 1=Disconnected, 2=Connected_Requesting, 3=Connected_Charging, 5=Connected_Finished
+  operatingMode?: string; // ChargerOperationMode:0=Unknown, 1=Disconnected, 2=Connected_Requesting, 3=Connected_Charging, 5=Connected_Finished
   deviceType?: number; // Device type from API
   serialNo?: string; // Serial number
 }

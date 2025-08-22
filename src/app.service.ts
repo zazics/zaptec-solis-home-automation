@@ -24,7 +24,7 @@ export class AppService implements OnModuleInit {
    * Called after all dependencies have been injected and modules initialized
    */
   public async onModuleInit(): Promise<void> {
-    //await this.test();
+    // await this.test();
   }
 
   private async test(): Promise<void> {

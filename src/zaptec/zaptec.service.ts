@@ -4,18 +4,19 @@ import {
   ZaptecStatus,
   ZaptecChargerInfo,
   ZaptecInstallationInfo,
-  ZaptecInstallationUpdateRequest,
+  ZaptecInstallationUpdateRequest
 } from './models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 import { Constants } from '../constants';
+import _ from 'lodash';
 
 /**
  * Service for managing Zaptec EV charging station operations
- * 
+ *
  * Handles authentication, API communication, and control of Zaptec charging stations.
  * Provides methods for monitoring charger status, setting charging parameters,
  * and optimizing charging based on available power from solar panels.
- * 
+ *
  * Features:
  * - OAuth2 authentication with automatic token refresh
  * - Real-time charger status monitoring via state endpoint
@@ -44,6 +45,10 @@ export class ZaptecService implements OnModuleInit {
   // Solar panel max power configuration
   private maxSolarPowerWatts: number;
 
+  // Cached status to avoid redundant API calls
+  private cachedStatus: ZaptecStatus | null = null;
+  private statusCacheTimestamp: Date | null = null;
+
   // StateId constants mapping based on Zaptec constants file
   private readonly stateIdMappings = {
     // Core power and charging states
@@ -69,7 +74,7 @@ export class ZaptecService implements OnModuleInit {
     100: 'Capabilities', // Device capabilities
     711: 'IsEnabled', // Charger enabled state
     718: 'FinalStopActive', // Final stop active
-    716: 'DetectedCar', // Car detection
+    716: 'DetectedCar' // Car detection
   };
 
   constructor() {}
@@ -99,13 +104,13 @@ export class ZaptecService implements OnModuleInit {
       const response = await fetch(`${this.baseUrl}/oauth/token`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
           grant_type: 'password',
           username: this.username,
-          password: this.password,
-        }),
+          password: this.password
+        })
       });
 
       if (!response.ok) {
@@ -137,8 +142,8 @@ export class ZaptecService implements OnModuleInit {
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
         'Content-Type': 'application/json',
-        ...options.headers,
-      },
+        ...options.headers
+      }
     });
 
     if (!response.ok) {
@@ -191,7 +196,7 @@ export class ZaptecService implements OnModuleInit {
         online: chargerInfo.IsOnline,
         name: chargerInfo.Name,
         deviceType: chargerInfo.DeviceType,
-        serialNo: chargerInfo.SerialNo,
+        serialNo: chargerInfo.SerialNo
       };
 
       // Get detailed state information
@@ -201,9 +206,16 @@ export class ZaptecService implements OnModuleInit {
 
       // Extract values with correct StateId mappings
       zaptecStatus.operatingMode = stateMap.ChargerOperationMode;
-      zaptecStatus.charging = stateMap.ChargerOperationMode === 3;
-      zaptecStatus.power = stateMap.TotalChargePower;
-      zaptecStatus.vehicleConnected = stateMap.operatingMode >= 2 && stateMap.operatingMode <= 5;
+      zaptecStatus.charging = stateMap.ChargerOperationMode === '3';
+      zaptecStatus.power = _.toNumber(stateMap.TotalChargePower);
+      zaptecStatus.totalPower = _.toNumber(stateMap.TotalChargePowerSession);
+      zaptecStatus.ChargeCurrentSet = _.round(stateMap.ChargeCurrentSet);
+      zaptecStatus.vehicleConnected =
+        _.toInteger(stateMap.ChargerOperationMode) >= 2 && _.toInteger(stateMap.ChargerOperationMode) <= 5;
+
+      // Cache the status with timestamp
+      this.cachedStatus = zaptecStatus;
+      this.statusCacheTimestamp = new Date();
 
       return zaptecStatus;
     } catch (error) {
@@ -218,7 +230,7 @@ export class ZaptecService implements OnModuleInit {
   public async setMaxCurrent(maxCurrent: number): Promise<void> {
     try {
       await this.updateInstallationInfo({
-        availableCurrent: maxCurrent,
+        availableCurrent: maxCurrent
       });
 
       this.logger.log(`Set available current to ${maxCurrent}A`, this.context);
@@ -229,18 +241,38 @@ export class ZaptecService implements OnModuleInit {
   }
 
   /**
-   * Enables or disables charging
+   * Enables or disables charging using Zaptec commands
    */
   public async setChargingEnabled(enabled: boolean): Promise<void> {
     try {
-      const endpoint = enabled ? 'start_charging' : 'stop_charging';
-      await this.apiCall(`/chargers/${this.chargerId}/${endpoint}`, {
-        method: 'POST',
+      // Command IDs according to Zaptec API documentation
+      const commandId = enabled ? 507 : 506; // 507 = Resume charging, 506 = Stop/pause charging
+
+      await this.apiCall(`/chargers/${this.chargerId}/sendCommand/${commandId}`, {
+        method: 'POST'
       });
 
-      this.logger.log(`Charging ${enabled ? 'enabled' : 'disabled'}`, this.context);
+      this.logger.log(`Charging ${enabled ? 'resumed' : 'paused'} (command ${commandId})`, this.context);
     } catch (error) {
       this.logger.error('Failed to set charging state', error, this.context);
+      throw error;
+    }
+  }
+
+  /**
+   * Completely stops and deauthorizes charging session
+   */
+  public async stopChargingSession(): Promise<void> {
+    try {
+      const commandId = 10001; // Deauthorize and stop charging
+
+      await this.apiCall(`/chargers/${this.chargerId}/sendCommand/${commandId}`, {
+        method: 'POST'
+      });
+
+      this.logger.log(`Charging session stopped and deauthorized (command ${commandId})`, this.context);
+    } catch (error) {
+      this.logger.error('Failed to stop charging session', error, this.context);
       throw error;
     }
   }
@@ -251,28 +283,63 @@ export class ZaptecService implements OnModuleInit {
   public async optimizeCharging(availablePower: number): Promise<void> {
     // Typical voltage in Europe (230V single-phase)
     const voltage = 230;
+    const minCurrent = 6;
+    const minPowerFor6A = minCurrent * voltage; // 1380W for 6A
+
+    // If available power is close to 6A minimum (within 10% tolerance), allow 6A charging
+    const tolerancePercent = 0.15; // 15% tolerance
+    const minPowerWithTolerance = minPowerFor6A * (1 - tolerancePercent); // ~1242W
 
     // Calculate the maximum possible current with available power
     // P = U * I, so I = P / U
     const maxPossibleCurrent = Math.floor(availablePower / voltage);
 
     // Limit current between 6A (minimum for charging) and calculated max from solar panels
-    const minCurrent = 6;
     const maxCurrentFromSolar = Math.floor(this.maxSolarPowerWatts / voltage);
     const maxCurrent = Math.min(32, maxCurrentFromSolar); // Never exceed 32A or solar panel capacity
     const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
 
     this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`, this.context);
 
-    if (availablePower < minCurrent * voltage) {
-      // Not enough power to charge, disable
-      await this.setChargingEnabled(false);
-      this.logger.log('Insufficient power, charging disabled', this.context);
+    // Use cached status to avoid redundant API calls
+    const currentStatus = this.cachedStatus;
+    if (!currentStatus) {
+      this.logger.warn('No cached status available, cannot optimize charging without current state', this.context);
+      return;
+    }
+
+    if (availablePower < minPowerWithTolerance) {
+      // Not enough power to charge, disable only if currently charging
+      if (currentStatus.charging) {
+        await this.setChargingEnabled(false);
+        this.logger.log(
+          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W), charging disabled`,
+          this.context
+        );
+      } else {
+        this.logger.log(
+          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W), charging already disabled`,
+          this.context
+        );
+      }
     } else {
-      // Configure current and enable charging
-      await this.setMaxCurrent(optimizedCurrent);
-      await this.setChargingEnabled(true);
-      this.logger.log(`Charging optimized to ${optimizedCurrent}A`, this.context);
+      // Configure current and enable charging, but only if needed
+      const needsCurrentUpdate = currentStatus.ChargeCurrentSet !== optimizedCurrent;
+      const needsChargingEnable = !currentStatus.charging;
+
+      if (needsCurrentUpdate) {
+        await this.setMaxCurrent(optimizedCurrent);
+        this.logger.log(`Updated charging current from ${currentStatus.ChargeCurrentSet}A to ${optimizedCurrent}A`, this.context);
+      }
+
+      if (needsChargingEnable) {
+        await this.setChargingEnabled(true);
+        this.logger.log('Charging enabled', this.context);
+      }
+
+      if (!needsCurrentUpdate && !needsChargingEnable) {
+        this.logger.log(`Charging already optimized at ${optimizedCurrent}A and enabled`, this.context);
+      }
     }
   }
 
@@ -285,7 +352,7 @@ export class ZaptecService implements OnModuleInit {
       const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
       const data = await this.apiCall<any>(
-        `/chargers/${this.chargerId}/sessions?from=${startDate.toISOString()}&to=${endDate.toISOString()}`,
+        `/chargers/${this.chargerId}/sessions?from=${startDate.toISOString()}&to=${endDate.toISOString()}`
       );
 
       return data;
@@ -315,7 +382,7 @@ export class ZaptecService implements OnModuleInit {
     try {
       await this.apiCall(`/installation/${this.installationId}/update`, {
         method: 'POST',
-        body: JSON.stringify(updateData),
+        body: JSON.stringify(updateData)
       });
 
       this.logger.log('Installation info updated successfully', this.context);
@@ -323,6 +390,22 @@ export class ZaptecService implements OnModuleInit {
       this.logger.error('Failed to update installation info', error, this.context);
       throw error;
     }
+  }
+
+  /**
+   * Retrieves cached status without making API call
+   * @returns {ZaptecStatus | null} Cached status or null if no cache available
+   */
+  public getCachedStatus(): ZaptecStatus | null {
+    return this.cachedStatus;
+  }
+
+  /**
+   * Gets the timestamp of the last status cache update
+   * @returns {Date | null} Cache timestamp or null if no cache available
+   */
+  public getCacheTimestamp(): Date | null {
+    return this.statusCacheTimestamp;
   }
 
   /**

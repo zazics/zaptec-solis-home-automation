@@ -87,11 +87,11 @@ export class HomeAutomationService implements OnModuleInit {
       }
       this.automationRunCounter++;
 
-      // Calculate available power (for charging or ...)
-      const availablePower = this.calculateAvailablePower(solisData);
-
-      // Retrieve Zaptec charging station status
+      // Retrieve Zaptec charging station status first
       const zaptecStatus = await this.zaptecService.getChargerStatus();
+
+      // Calculate available power (including current charging power)
+      const availablePower = this.calculateAvailablePower(solisData, zaptecStatus);
 
       // Execute automation logic according to mode
       await this.executeAutomationLogic(availablePower, solisData, zaptecStatus);
@@ -103,28 +103,67 @@ export class HomeAutomationService implements OnModuleInit {
   }
 
   /**
-   * Calculates available power for charging based on Solis data
+   * Calculates available power for charging based on Solis data and current charging status
    */
-  private calculateAvailablePower(solisData: SolisInverterData): number {
-    const solarProduction = solisData.pv.totalPowerDC;
+  private calculateAvailablePower(solisData: SolisInverterData, zaptecStatus: ZaptecStatus): number {
+    const solarProduction = Math.min(solisData.pv.totalPowerDC, 5000); // Max 5kW inverter capacity
     const houseConsumption = solisData.house.consumption;
-    const gridPower = solisData.grid.activePower; // + = injection, - = consumption
-    const batteryPower = solisData.battery.power; // + = discharge, - = charge
+    const batterySoc = solisData.battery.soc; // State of charge in %
+    const currentChargingPower = zaptecStatus.charging ? zaptecStatus.power || 0 : 0;
 
-    // Calculate available surplus
-    // If injecting to grid (gridPower > 0), this power can be used for charging
-    let availablePower = 0;
+    // Calculate house consumption without Zaptec charging
+    const houseConsumptionWithoutZaptec = Math.max(0, houseConsumption - currentChargingPower);
 
-    if (gridPower > 0) {
-      // Injecting to grid, can use this power for charging
-      availablePower = gridPower - this.config.priorityLoadReserve;
-    } else if (solarProduction > houseConsumption) {
-      // Production > consumption, surplus available
-      availablePower = solarProduction - houseConsumption - this.config.priorityLoadReserve;
+    // Base available power = solar production - house consumption (without Zaptec)
+    let basePowerAvailable = Math.max(0, solarProduction - houseConsumptionWithoutZaptec);
+
+    // Battery management based on SOC
+    let batteryReservePower = 0;
+    if (batterySoc < 40) {
+      // Battery SOC < 40%: prioritize battery charging only
+      this.logger.debug(`Battery SOC=${batterySoc}% < 40%, prioritizing battery charging only`, this.context);
+      return 0; // No power available for EV charging
+    } else if (batterySoc < 80) {
+      // Battery SOC 40-80%: reserve some power for battery charging
+      const batteryReservePercent = 0.2; // Reserve 20% of available power for battery
+      batteryReservePower = basePowerAvailable * batteryReservePercent;
+      basePowerAvailable = basePowerAvailable * (1 - batteryReservePercent);
+      this.logger.debug(
+        `Battery SOC=${batterySoc}% < 80%, reserving ${batteryReservePower}W for battery charging`,
+        this.context
+      );
     }
 
-    // Ensure value is positive
-    return Math.max(0, availablePower);
+    // Apply priority load reserve
+    const totalAvailablePower = Math.max(0, basePowerAvailable - this.config.priorityLoadReserve);
+
+    // If current charging exceeds solar production, limit to solar production only
+    if (currentChargingPower > solarProduction) {
+      const limitedPower = Math.max(0, solarProduction - this.config.priorityLoadReserve);
+      this.logger.debug(
+        `Current charging (${currentChargingPower}W) exceeds solar production (${solarProduction}W), ` +
+          `limiting to solar production: ${limitedPower}W`,
+        this.context
+      );
+
+      this.logger.debug(
+        `Power calculation: Solar=${solarProduction}W, HouseWithoutZaptec=${houseConsumptionWithoutZaptec}W, ` +
+          `Battery=${batterySoc}%, CurrentCharging=${currentChargingPower}W, ` +
+          `BatteryReserve=${batteryReservePower}W, Available=${limitedPower}W (LIMITED)`,
+        this.context
+      );
+
+      return limitedPower;
+    }
+
+    this.logger.debug(
+      `Power calculation: Solar=${solarProduction}W, HouseWithoutZaptec=${houseConsumptionWithoutZaptec}W, ` +
+        `Battery=${batterySoc}%, CurrentCharging=${currentChargingPower}W, ` +
+        `BatteryReserve=${batteryReservePower}W, Available=${totalAvailablePower}W`,
+      this.context
+    );
+
+    return totalAvailablePower;
   }
 
   /**
@@ -204,7 +243,7 @@ export class HomeAutomationService implements OnModuleInit {
     try {
       const solisData = await this.solisService.getAllData();
       const zaptecStatus = await this.zaptecService.getChargerStatus();
-      const availablePower = this.calculateAvailablePower(solisData);
+      const availablePower = this.calculateAvailablePower(solisData, zaptecStatus);
 
       return {
         enabled: this.config.enabled && this.automationEnabled,
