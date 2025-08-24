@@ -87,6 +87,18 @@ export class HomeAutomationService implements OnModuleInit {
       }
       this.automationRunCounter++;
 
+      // Check if it's night time (21h-6h) - no solar production expected
+      const currentHour = new Date().getHours();
+      const isNightTime = currentHour >= 21 || currentHour < 6;
+
+      if (isNightTime) {
+        this.logger.debug(
+          `Night time detected (${currentHour}h), skipping power calculation and automation`,
+          this.context
+        );
+        return; // Only save inverter data, skip power calculation and charging logic
+      }
+
       // Retrieve Zaptec charging station status first
       const zaptecStatus = await this.zaptecService.getChargerStatus();
 
