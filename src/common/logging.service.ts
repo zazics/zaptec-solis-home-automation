@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import dayjs from 'dayjs';
 import { Constants } from '../constants';
 
 /**
@@ -48,8 +49,8 @@ export class LoggingService {
     const contextString = context ? `[${context}] ` : '';
     const logMessage = `${timestamp} [${level.toUpperCase()}] ${contextString}${message}\n`;
 
-    // Create date-based filename using local Belgian date
-    const dateStr = now.toLocaleDateString('fr-BE'); // YYYY-MM-DD format in local time
+    // Create date-based filename using DayJS
+    const dateStr = dayjs().format('YYYY-MM-DD');
     const logFile = path.join(this.logDir, `${this.appName}-${dateStr}.log`);
 
     try {
