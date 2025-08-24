@@ -76,7 +76,7 @@ export class HomeAutomationService implements OnModuleInit {
     }
 
     try {
-      this.logger.debug('Running automation cycle...', this.context);
+      this.logger.log('Running automation cycle...', this.context);
 
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
@@ -92,7 +92,7 @@ export class HomeAutomationService implements OnModuleInit {
       const isNightTime = currentHour >= 21 || currentHour < 6;
 
       if (isNightTime) {
-        this.logger.debug(
+        this.logger.log(
           `Night time detected (${currentHour}h), skipping power calculation and automation`,
           this.context
         );
