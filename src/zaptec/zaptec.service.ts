@@ -49,6 +49,9 @@ export class ZaptecService implements OnModuleInit {
   private cachedStatus: ZaptecStatus | null = null;
   private statusCacheTimestamp: Date | null = null;
 
+  // Charging interruption delay to avoid frequent stops
+  private insufficientPowerFirstDetected: Date | null = null;
+
   // StateId constants mapping based on Zaptec constants file
   private readonly stateIdMappings = {
     // Core power and charging states
@@ -296,7 +299,7 @@ export class ZaptecService implements OnModuleInit {
 
     // Limit current between 6A (minimum for charging) and calculated max from solar panels
     const maxCurrentFromSolar = Math.floor(this.maxSolarPowerWatts / voltage);
-    const maxCurrent = Math.min(32, maxCurrentFromSolar); // Never exceed 32A or solar panel capacity
+    const maxCurrent = Math.min(20, maxCurrentFromSolar); // Never exceed 20A or solar panel capacity (20A to not overpass inverter max power)
     const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
 
     this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`, this.context);
@@ -309,13 +312,36 @@ export class ZaptecService implements OnModuleInit {
     }
 
     if (availablePower < minPowerWithTolerance) {
-      // Not enough power to charge, disable only if currently charging
+      // Not enough power to charge
       if (currentStatus.charging) {
-        await this.setChargingEnabled(false);
-        this.logger.log(
-          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W), charging disabled`,
-          this.context
-        );
+        const now = new Date();
+        
+        // First time detecting insufficient power
+        if (!this.insufficientPowerFirstDetected) {
+          this.insufficientPowerFirstDetected = now;
+          this.logger.log(
+            `Insufficient power detected (${availablePower}W < ${minPowerWithTolerance}W), waiting for next verification before stopping charging`,
+            this.context
+          );
+        } else {
+          // Check if enough time has passed since first detection (wait for next automation cycle)
+          const timeSinceFirstDetection = now.getTime() - this.insufficientPowerFirstDetected.getTime();
+          const waitTimeMs = 90000; // 90 seconds (more than one automation cycle)
+          
+          if (timeSinceFirstDetection >= waitTimeMs) {
+            await this.setChargingEnabled(false);
+            this.logger.log(
+              `Insufficient power confirmed after ${Math.round(timeSinceFirstDetection / 1000)}s, charging disabled`,
+              this.context
+            );
+            this.insufficientPowerFirstDetected = null; // Reset for next time
+          } else {
+            this.logger.log(
+              `Insufficient power still detected, waiting ${Math.round((waitTimeMs - timeSinceFirstDetection) / 1000)}s more before stopping`,
+              this.context
+            );
+          }
+        }
       } else {
         this.logger.log(
           `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W), charging already disabled`,
@@ -323,13 +349,22 @@ export class ZaptecService implements OnModuleInit {
         );
       }
     } else {
+      // Reset insufficient power detection since power is now sufficient
+      if (this.insufficientPowerFirstDetected) {
+        this.logger.log('Power is now sufficient, resetting insufficient power detection', this.context);
+        this.insufficientPowerFirstDetected = null;
+      }
+
       // Configure current and enable charging, but only if needed
       const needsCurrentUpdate = currentStatus.ChargeCurrentSet !== optimizedCurrent;
       const needsChargingEnable = !currentStatus.charging;
 
       if (needsCurrentUpdate) {
         await this.setMaxCurrent(optimizedCurrent);
-        this.logger.log(`Updated charging current from ${currentStatus.ChargeCurrentSet}A to ${optimizedCurrent}A`, this.context);
+        this.logger.log(
+          `Updated charging current from ${currentStatus.ChargeCurrentSet}A to ${optimizedCurrent}A`,
+          this.context
+        );
       }
 
       if (needsChargingEnable) {

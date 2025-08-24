@@ -136,10 +136,10 @@ export class HomeAutomationService implements OnModuleInit {
       this.logger.debug(`Battery SOC=${batterySoc}% < 40%, prioritizing battery charging only`, this.context);
       return 0; // No power available for EV charging
     } else if (batterySoc < 70) {
-      // Battery SOC 40-80%: reserve some power for battery charging
+      // Battery SOC 40-70%: reserve some power for battery charging
       const batteryReservePercent = 0.1; // Reserve 10% of available power for battery
       const calculatedReserve = basePowerAvailable * batteryReservePercent;
-      batteryReservePower = Math.min(calculatedReserve, 400); // Max 400W reserve for battery
+      batteryReservePower = Math.min(calculatedReserve, 300); // Max 300W reserve for battery
       basePowerAvailable = Math.max(0, basePowerAvailable - batteryReservePower);
       this.logger.debug(
         `Battery SOC=${batterySoc}% < 80%, reserving ${batteryReservePower}W (max 400W) for battery charging`,
