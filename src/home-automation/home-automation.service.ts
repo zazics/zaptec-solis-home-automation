@@ -123,9 +123,9 @@ export class HomeAutomationService implements OnModuleInit {
       // Battery SOC < 40%: prioritize battery charging only
       this.logger.debug(`Battery SOC=${batterySoc}% < 40%, prioritizing battery charging only`, this.context);
       return 0; // No power available for EV charging
-    } else if (batterySoc < 80) {
+    } else if (batterySoc < 70) {
       // Battery SOC 40-80%: reserve some power for battery charging
-      const batteryReservePercent = 0.2; // Reserve 20% of available power for battery
+      const batteryReservePercent = 0.1; // Reserve 10% of available power for battery
       batteryReservePower = basePowerAvailable * batteryReservePercent;
       basePowerAvailable = basePowerAvailable * (1 - batteryReservePercent);
       this.logger.debug(
@@ -144,7 +144,7 @@ export class HomeAutomationService implements OnModuleInit {
       totalAvailablePower = Math.max(0, totalAvailablePower - reductionAmount);
       this.logger.debug(
         `High consumption detected (${houseConsumption}W > ${Constants.POWER.INVERTER_MAX_POWER}W), ` +
-        `reducing available power by ${Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT}% (${reductionAmount}W)`,
+          `reducing available power by ${Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT}% (${reductionAmount}W)`,
         this.context
       );
     }
@@ -152,14 +152,14 @@ export class HomeAutomationService implements OnModuleInit {
     // If current charging exceeds solar production, limit to solar production only
     if (currentChargingPower > solarProduction) {
       let limitedPower = Math.max(0, solarProduction - this.config.priorityLoadReserve);
-      
+
       // Apply high consumption reduction to limited power as well
       if (houseConsumption > Constants.POWER.INVERTER_MAX_POWER) {
         const reductionPercent = Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT / 100;
         const reductionAmount = limitedPower * reductionPercent;
         limitedPower = Math.max(0, limitedPower - reductionAmount);
       }
-      
+
       this.logger.debug(
         `Current charging (${currentChargingPower}W) exceeds solar production (${solarProduction}W), ` +
           `limiting to solar production: ${limitedPower}W`,

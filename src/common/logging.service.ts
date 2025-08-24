@@ -5,28 +5,27 @@ import { Constants } from '../constants';
 
 /**
  * Centralized logging service for the entire application
- * 
+ *
  * Provides unified logging functionality across all services and controllers
  * with support for multiple output targets including console and file logging.
  * Replaces the default NestJS Logger to ensure consistent log formatting
  * and centralized log management.
- * 
+ *
  * Features:
  * - Multi-level logging (debug, info, warn, error, verbose)
- * - File-based logging with automatic directory creation
+ * - Daily file-based logging with automatic directory creation
  * - Context-aware logging for service identification
- * - Separate error log file for critical issues
+ * - Belgian timezone support for accurate timestamps
  * - Configurable log directory and application name
  * - Synchronous file writing for reliability
- * - Console output with level indicators
- * 
+ * - Console output for errors only
+ *
  * Configuration:
  * - LOG_DIR: Directory for log files (default: 'logs')
  * - APP_NAME: Application name for log file naming (default: 'zaptec-solis-automation')
- * 
+ *
  * Output Files:
- * - {APP_NAME}.log: All log entries
- * - {APP_NAME}-error.log: Error-level entries only
+ * - {APP_NAME}-YYYY-MM-DD.log: Daily log files with all entries (debug, info, warn, error, verbose)
  */
 @Injectable()
 export class LoggingService {
@@ -36,7 +35,7 @@ export class LoggingService {
   constructor() {
     this.logDir = Constants.LOGGING.LOG_DIR;
     this.appName = Constants.LOGGING.APP_NAME;
-    
+
     // Ensure log directory exists
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
@@ -44,18 +43,18 @@ export class LoggingService {
   }
 
   private writeToFile(level: string, message: string, context?: string): void {
-    const timestamp = new Date().toISOString();
+    const now = new Date();
+    const timestamp = now.toLocaleString('fr-BE'); // Belgian French format for timestamp
     const contextString = context ? `[${context}] ` : '';
     const logMessage = `${timestamp} [${level.toUpperCase()}] ${contextString}${message}\n`;
-    
+
+    // Create date-based filename using local Belgian date
+    const dateStr = now.toLocaleDateString('fr-BE'); // YYYY-MM-DD format in local time
+    const logFile = path.join(this.logDir, `${this.appName}-${dateStr}.log`);
+
     try {
-      // Write to main log file
-      fs.appendFileSync(path.join(this.logDir, `${this.appName}.log`), logMessage);
-      
-      // Write errors to separate file
-      if (level === 'error') {
-        fs.appendFileSync(path.join(this.logDir, `${this.appName}-error.log`), logMessage);
-      }
+      // Write all logs to single daily file
+      fs.appendFileSync(logFile, logMessage);
     } catch (error) {
       console.error('Failed to write to log file:', error);
     }
@@ -65,7 +64,6 @@ export class LoggingService {
    * Log debug message
    */
   public debug(message: string, context?: string): void {
-    console.debug(`[DEBUG] ${context ? `[${context}] ` : ''}${message}`);
     this.writeToFile('debug', message, context);
   }
 
@@ -73,7 +71,6 @@ export class LoggingService {
    * Log info message
    */
   public log(message: string, context?: string): void {
-    console.log(`[INFO] ${context ? `[${context}] ` : ''}${message}`);
     this.writeToFile('info', message, context);
   }
 
@@ -81,7 +78,6 @@ export class LoggingService {
    * Log warning message
    */
   public warn(message: string, context?: string): void {
-    console.warn(`[WARN] ${context ? `[${context}] ` : ''}${message}`);
     this.writeToFile('warn', message, context);
   }
 
@@ -95,7 +91,7 @@ export class LoggingService {
     } else if (typeof error === 'string') {
       fullMessage = `${message}: ${error}`;
     }
-    
+
     console.error(`[ERROR] ${context ? `[${context}] ` : ''}${fullMessage}`);
     this.writeToFile('error', fullMessage, context);
   }
@@ -104,7 +100,6 @@ export class LoggingService {
    * Log verbose message
    */
   public verbose(message: string, context?: string): void {
-    console.log(`[VERBOSE] ${context ? `[${context}] ` : ''}${message}`);
     this.writeToFile('verbose', message, context);
   }
 }
