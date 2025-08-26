@@ -281,17 +281,38 @@ export class ZaptecService implements OnModuleInit {
   }
 
   /**
-   * Configures optimal charging parameters based on available power
+   * Configures optimal charging parameters based on available power and battery level
    */
-  public async optimizeCharging(availablePower: number): Promise<void> {
+  public async optimizeCharging(availablePower: number, batterySoc?: number): Promise<void> {
     // Typical voltage in Europe (230V single-phase)
     const voltage = 230;
     const minCurrent = 6;
     const minPowerFor6A = minCurrent * voltage; // 1380W for 6A
 
-    // If available power is close to 6A minimum (within 15% tolerance), allow 6A charging
-    const tolerancePercent = 0.15; // 15% tolerance
+    // Calculate tolerance based on battery SOC
+    // No tolerance if battery < 60%, proportional tolerance up to 30% if battery > 90%
+    let tolerancePercent = 0.15; // Default 15% tolerance
+    
+    if (batterySoc !== undefined) {
+      if (batterySoc < 60) {
+        tolerancePercent = 0; // No tolerance below 60%
+      } else if (batterySoc >= 60 && batterySoc <= 90) {
+        // Linear interpolation between 0% (at 60%) and 15% (at 90%)
+        tolerancePercent = 0.15 * ((batterySoc - 60) / 30);
+      } else if (batterySoc > 90) {
+        // Linear interpolation between 15% (at 90%) and 30% (at 100%)
+        tolerancePercent = 0.15 + 0.15 * ((batterySoc - 90) / 10);
+        tolerancePercent = Math.min(tolerancePercent, 0.30); // Cap at 30%
+      }
+    }
+    
     const minPowerWithTolerance = minPowerFor6A * (1 - tolerancePercent);
+    
+    this.logger.debug(
+      `Battery SOC: ${batterySoc}%, tolerance: ${(tolerancePercent * 100).toFixed(1)}%, ` +
+      `min power threshold: ${minPowerWithTolerance.toFixed(0)}W`,
+      this.context
+    );
 
     // Calculate the maximum possible current with available power
     // P = U * I, so I = P / U

@@ -215,11 +215,11 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<void> {
     switch (this.config.mode) {
       case 'surplus':
-        await this.executeSurplusMode(availablePower, zaptecStatus);
+        await this.executeSurplusMode(availablePower, solisData, zaptecStatus);
         break;
 
       case 'scheduled':
-        await this.executeScheduledMode(availablePower, zaptecStatus);
+        await this.executeScheduledMode(availablePower, solisData, zaptecStatus);
         break;
 
       case 'manual':
@@ -232,11 +232,11 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Surplus mode: charge only when there is solar surplus
    */
-  private async executeSurplusMode(availablePower: number, zaptecStatus: ZaptecStatus): Promise<void> {
+  private async executeSurplusMode(availablePower: number, solisData: SolisInverterData, zaptecStatus: ZaptecStatus): Promise<void> {
     if (availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
       // Enough surplus and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
-      await this.zaptecService.optimizeCharging(chargingPower);
+      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
       this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`, this.context);
     } else if (availablePower < this.config.minSurplusPower && zaptecStatus.charging) {
       //not enough surplus and charging
@@ -252,14 +252,14 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Scheduled mode: charge during defined hours if surplus available
    */
-  private async executeScheduledMode(availablePower: number, zaptecStatus: ZaptecStatus): Promise<void> {
+  private async executeScheduledMode(availablePower: number, solisData: SolisInverterData, zaptecStatus: ZaptecStatus): Promise<void> {
     const currentHour = new Date().getHours().toString();
     const isScheduledHour = this.config.scheduledHours.includes(currentHour);
 
     if (isScheduledHour && availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
       // Scheduled hour, surplus available and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
-      await this.zaptecService.optimizeCharging(chargingPower);
+      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
       this.logger.log(
         `Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`,
         this.context
