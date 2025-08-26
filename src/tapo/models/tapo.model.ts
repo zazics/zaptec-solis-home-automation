@@ -1,32 +1,62 @@
 /**
  * Tapo Smart Plug Models and Interfaces
- * 
+ *
  * Data models for TP-Link Tapo P110 smart plugs including device information,
  * power consumption metrics, and control states.
  */
 
+import { TapoDevice, TapoDeviceInfo } from 'tp-link-tapo-connect';
+
 /**
- * Tapo device information and status
+ * Import types from tp-link-tapo-connect library
  */
-export interface TapoDeviceInfo {
-  /** Device ID/MAC address */
-  deviceId: string;
-  /** Device friendly name */
-  nickname: string;
-  /** Device model (e.g., P110) */
-  model: string;
-  /** Firmware version */
-  firmwareVersion: string;
-  /** Hardware version */
-  hardwareVersion: string;
-  /** Device IP address */
-  ip: string;
-  /** Device online status */
-  online: boolean;
-  /** Device on/off state */
-  deviceOn: boolean;
-  /** Signal strength (0-100) */
-  signalLevel: number;
+export { TapoDevice, TapoDeviceInfo } from 'tp-link-tapo-connect';
+
+/**
+ * Tapo Cloud API interface returned by cloudLogin()
+ */
+export interface TapoCloudApi {
+  /** List all devices */
+  listDevices(): Promise<TapoDevice[]>;
+  /** List devices by type */
+  listDevicesByType(deviceType: string): Promise<TapoDevice[]>;
+  /** Get Tapo Care cloud videos */
+  tapoCareCloudVideos(
+    deviceId: string,
+    order?: string,
+    page?: number,
+    pageSize?: number,
+    startTime?: string | null,
+    endTime?: string | null
+  ): Promise<any>;
+}
+
+/**
+ * Tapo Device Controller interface returned by loginDeviceByIp() and loginDevice()
+ */
+export interface TapoDeviceController {
+  /** Turn device on */
+  turnOn(deviceId?: string): Promise<void>;
+  /** Turn device off */
+  turnOff(deviceId?: string): Promise<void>;
+  /** Set brightness for smart bulbs */
+  setBrightness(brightnessLevel?: number): Promise<void>;
+  /** Set color for smart bulbs */
+  setColour(colour?: string): Promise<void>;
+  /** Set HSL for smart bulbs */
+  setHSL(hue: number, sat: number, lum: number): Promise<void>;
+  /** Get device information */
+  getDeviceInfo(): Promise<TapoDeviceInfo>;
+  /** Get child devices info (for hubs) */
+  getChildDevicesInfo(): Promise<TapoDeviceInfo[]>;
+  /** Get energy usage data */
+  getEnergyUsage(): Promise<TapoDeviceInfo>;
+}
+
+/**
+ * Extended Tapo device info with additional fields for our service
+ */
+export interface TapoDeviceInfoExtended extends TapoDeviceInfo {
   /** Last update timestamp */
   lastUpdate: Date;
 }
@@ -54,7 +84,7 @@ export interface TapoPowerData {
  */
 export interface TapoStatus {
   /** Device information */
-  deviceInfo: TapoDeviceInfo;
+  deviceInfo: TapoDeviceInfoExtended;
   /** Power/energy data (only for P110) */
   powerData?: TapoPowerData;
 }
@@ -94,7 +124,7 @@ export interface TapoAutomationRule {
     /** Time-based condition */
     timeCondition?: {
       startTime: string; // HH:mm format
-      endTime: string;   // HH:mm format
+      endTime: string; // HH:mm format
     };
     /** Solar production threshold */
     solarProductionThreshold?: number;

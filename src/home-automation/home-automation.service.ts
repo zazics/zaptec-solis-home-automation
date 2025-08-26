@@ -74,7 +74,6 @@ export class HomeAutomationService implements OnModuleInit {
   //@Cron(CronExpression.EVERY_HOUR)
   @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
-    await this.tapoService.setDeviceState('Boiler', true);
     if (!this.config.enabled || !this.automationEnabled) {
       return;
     }

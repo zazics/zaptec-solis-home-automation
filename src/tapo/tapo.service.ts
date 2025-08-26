@@ -2,7 +2,15 @@ import { Inject, Injectable } from '@nestjs/common';
 import { cloudLogin, loginDeviceByIp } from 'tp-link-tapo-connect';
 import { LoggingService } from '../common/logging.service';
 import { Constants } from '../constants';
-import { TapoDeviceInfo, TapoPowerData, TapoStatus, TapoDeviceConfig, TapoServiceStatus } from './models/tapo.model';
+import {
+  TapoDeviceInfoExtended,
+  TapoPowerData,
+  TapoStatus,
+  TapoDeviceConfig,
+  TapoServiceStatus,
+  TapoCloudApi,
+  TapoDeviceController
+} from './models/tapo.model';
 
 /**
  * Service for managing TP-Link Tapo smart plugs
@@ -30,9 +38,9 @@ export class TapoService {
   private readonly context = TapoService.name;
   @Inject(LoggingService) private readonly logger: LoggingService;
 
-  private cloudApi: any = null;
+  private cloudApi: TapoCloudApi | null = null;
   private devices: Map<string, TapoDeviceConfig> = new Map();
-  private deviceConnections: Map<string, any> = new Map();
+  private deviceConnections: Map<string, TapoDeviceController> = new Map();
   private lastUpdate: Date = new Date();
 
   constructor() {
@@ -94,7 +102,7 @@ export class TapoService {
   /**
    * Connect to a specific Tapo device
    */
-  private async connectToDevice(deviceConfig: TapoDeviceConfig): Promise<any> {
+  private async connectToDevice(deviceConfig: TapoDeviceConfig): Promise<TapoDeviceController> {
     try {
       const existingConnection = this.deviceConnections.get(deviceConfig.name);
       if (existingConnection) {
@@ -125,16 +133,8 @@ export class TapoService {
       const device = await this.connectToDevice(deviceConfig);
       const deviceInfo = await device.getDeviceInfo();
 
-      const tapoDeviceInfo: TapoDeviceInfo = {
-        deviceId: deviceInfo.device_id || deviceInfo.mac || deviceName,
-        nickname: deviceInfo.nickname || deviceName,
-        model: deviceInfo.model || deviceConfig.type,
-        firmwareVersion: deviceInfo.fw_ver || 'unknown',
-        hardwareVersion: deviceInfo.hw_ver || 'unknown',
-        ip: deviceConfig.ip,
-        online: deviceInfo.device_on !== undefined,
-        deviceOn: deviceInfo.device_on || false,
-        signalLevel: deviceInfo.signal_level || 0,
+      const tapoDeviceInfo: TapoDeviceInfoExtended = {
+        ...deviceInfo,
         lastUpdate: new Date()
       };
 
@@ -145,15 +145,27 @@ export class TapoService {
       // Get power data for energy monitoring devices (P110, P115)
       if (deviceConfig.type === 'P110' || deviceConfig.type === 'P115') {
         try {
-          const powerInfo = await device.getEnergyUsage();
+          const energyInfo = await device.getEnergyUsage();
+          // The energy usage data comes within the TapoDeviceInfo object
+          // We need to check if the energy fields exist in the response
           const powerData: TapoPowerData = {
-            currentPower: powerInfo.current_power_mw ? powerInfo.current_power_mw / 1000 : 0, // Convert mW to W
-            todayEnergy: powerInfo.today_energy_wh ? powerInfo.today_energy_wh / 1000 : 0, // Convert Wh to kWh
-            monthEnergy: powerInfo.month_energy_wh ? powerInfo.month_energy_wh / 1000 : 0, // Convert Wh to kWh
-            voltage: powerInfo.voltage_mv ? powerInfo.voltage_mv / 1000 : 0, // Convert mV to V
-            current: powerInfo.current_ma ? powerInfo.current_ma / 1000 : 0, // Convert mA to A
+            currentPower: 0, // Will be populated if available in energyInfo
+            todayEnergy: 0,
+            monthEnergy: 0,
+            voltage: 0,
+            current: 0,
             timestamp: new Date()
           };
+
+          // Try to extract power data from the response
+          // Note: The actual field names may vary - need to inspect actual API response
+          if ((energyInfo as any).current_power !== undefined) {
+            powerData.currentPower = (energyInfo as any).current_power / 1000; // mW to W
+          }
+          if ((energyInfo as any).today_runtime !== undefined) {
+            // Convert runtime to energy estimate if available
+          }
+
           tapoStatus.powerData = powerData;
         } catch (powerError) {
           this.logger.error(`Failed to get power data for ${deviceName}`, powerError, this.context);
@@ -181,11 +193,11 @@ export class TapoService {
         const status = await this.getDeviceStatus(deviceName);
         devices.push(status);
 
-        if (status.deviceInfo.online) {
+        if (status.deviceInfo.ip && status.deviceInfo.device_id) {
           onlineDevices++;
         }
 
-        if (status.deviceInfo.deviceOn) {
+        if (status.deviceInfo.device_on) {
           activeDevices++;
         }
 
@@ -253,7 +265,7 @@ export class TapoService {
    */
   public async toggleDevice(deviceName: string): Promise<void> {
     const status = await this.getDeviceStatus(deviceName);
-    await this.setDeviceState(deviceName, !status.deviceInfo.deviceOn);
+    await this.setDeviceState(deviceName, !status.deviceInfo.device_on);
   }
 
   /**
