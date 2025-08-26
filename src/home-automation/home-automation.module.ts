@@ -4,9 +4,10 @@ import { HomeAutomationController } from './home-automation.controller';
 import { SolisModule } from '../solis/solis.module';
 import { ZaptecModule } from '../zaptec/zaptec.module';
 import { LoggingService } from '../common/logging.service';
+import { TapoModule } from '../tapo/tapo.module';
 
 @Module({
-  imports: [SolisModule, ZaptecModule, SolisModule],
+  imports: [SolisModule, ZaptecModule, SolisModule, TapoModule],
   providers: [HomeAutomationService, LoggingService],
   controllers: [HomeAutomationController],
   exports: [HomeAutomationService]

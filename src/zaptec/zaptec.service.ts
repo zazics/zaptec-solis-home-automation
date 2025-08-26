@@ -289,9 +289,9 @@ export class ZaptecService implements OnModuleInit {
     const minCurrent = 6;
     const minPowerFor6A = minCurrent * voltage; // 1380W for 6A
 
-    // If available power is close to 6A minimum (within 10% tolerance), allow 6A charging
+    // If available power is close to 6A minimum (within 15% tolerance), allow 6A charging
     const tolerancePercent = 0.15; // 15% tolerance
-    const minPowerWithTolerance = minPowerFor6A * (1 - tolerancePercent); // ~1242W
+    const minPowerWithTolerance = minPowerFor6A * (1 - tolerancePercent);
 
     // Calculate the maximum possible current with available power
     // P = U * I, so I = P / U
@@ -315,7 +315,7 @@ export class ZaptecService implements OnModuleInit {
       // Not enough power to charge
       if (currentStatus.charging) {
         const now = new Date();
-        
+
         // First time detecting insufficient power
         if (!this.insufficientPowerFirstDetected) {
           this.insufficientPowerFirstDetected = now;
@@ -327,7 +327,7 @@ export class ZaptecService implements OnModuleInit {
           // Check if enough time has passed since first detection (wait for next automation cycle)
           const timeSinceFirstDetection = now.getTime() - this.insufficientPowerFirstDetected.getTime();
           const waitTimeMs = 90000; // 90 seconds (more than one automation cycle)
-          
+
           if (timeSinceFirstDetection >= waitTimeMs) {
             await this.setChargingEnabled(false);
             this.logger.log(

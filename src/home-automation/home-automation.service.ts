@@ -8,6 +8,8 @@ import { LoggingService } from '../common/logging.service';
 import { SolisInverterData } from '../solis/models/solis.model';
 import { AutomationConfig, AutomationStatus } from './models/home-automation.model';
 import { Constants } from '../constants';
+import * as SunCalc from 'suncalc';
+import { TapoService } from '../tapo/tapo.service';
 
 /**
  * Core automation service that coordinates solar energy production with EV charging
@@ -40,6 +42,7 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(SolisService) private readonly solisService: SolisService;
   @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
   @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
+  @Inject(TapoService) private readonly tapoService: TapoService;
   @Inject(LoggingService) private readonly logger: LoggingService;
 
   private config: AutomationConfig;
@@ -71,6 +74,7 @@ export class HomeAutomationService implements OnModuleInit {
   //@Cron(CronExpression.EVERY_HOUR)
   @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
+    await this.tapoService.setDeviceState('Boiler', true);
     if (!this.config.enabled || !this.automationEnabled) {
       return;
     }
@@ -87,13 +91,16 @@ export class HomeAutomationService implements OnModuleInit {
       }
       this.automationRunCounter++;
 
-      // Check if it's night time (21h-6h) - no solar production expected
-      const currentHour = new Date().getHours();
-      const isNightTime = currentHour >= 21 || currentHour < 6;
+      // Check if it's night time based on sunrise/sunset - no solar production expected
+      const now = new Date();
+      const sunTimes = SunCalc.getTimes(now, Constants.LOCATION.LATITUDE, Constants.LOCATION.LONGITUDE);
+      const isNightTime = now < sunTimes.sunrise || now > sunTimes.sunset;
 
       if (isNightTime) {
-        this.logger.log(
-          `Night time detected (${currentHour}h), skipping power calculation and automation`,
+        const sunriseTime = sunTimes.sunrise.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+        const sunsetTime = sunTimes.sunset.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+        this.logger.debug(
+          `Night time detected (sunrise: ${sunriseTime}, sunset: ${sunsetTime}), skipping power calculation and automation`,
           this.context
         );
         return; // Only save inverter data, skip power calculation and charging logic

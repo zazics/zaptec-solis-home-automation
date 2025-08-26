@@ -162,4 +162,49 @@ export class Constants {
       return 5000;
     }
   };
+
+  /**
+   * Location Constants for Belgium
+   */
+  public static LOCATION = {
+    /**
+     * Belgium coordinates (Brussels area)
+     */
+    get LATITUDE(): number {
+      return _.toNumber(process.env.LATITUDE) || 50.8503; // Brussels latitude
+    },
+
+    get LONGITUDE(): number {
+      return _.toNumber(process.env.LONGITUDE) || 4.3517; // Brussels longitude
+    }
+  };
+
+  /**
+   * Tapo Smart Plugs Configuration
+   */
+  public static TAPO = {
+    get USERNAME(): string {
+      return process.env.TAPO_USERNAME || '';
+    },
+
+    get PASSWORD(): string {
+      return process.env.TAPO_PASSWORD || '';
+    },
+
+    get DEVICES(): string {
+      return process.env.TAPO_DEVICES || '';
+    },
+
+    get UPDATE_INTERVAL(): number {
+      return _.toNumber(process.env.TAPO_UPDATE_INTERVAL) || 30000; // 30 seconds
+    },
+
+    get CONNECTION_TIMEOUT(): number {
+      return _.toNumber(process.env.TAPO_CONNECTION_TIMEOUT) || 10000; // 10 seconds
+    },
+
+    get AUTOMATION_ENABLED(): boolean {
+      return process.env.TAPO_AUTOMATION_ENABLED === 'true';
+    }
+  };
 }
