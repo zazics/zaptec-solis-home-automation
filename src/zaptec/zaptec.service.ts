@@ -290,7 +290,7 @@ export class ZaptecService implements OnModuleInit {
     const minPowerFor6A = minCurrent * voltage; // 1380W for 6A
 
     // Calculate tolerance based on battery SOC
-    // No tolerance if battery < 60%, proportional tolerance up to 30% if battery > 90%
+    // No tolerance if battery < 60%, proportional tolerance up to 25% if battery > 90%
     let tolerancePercent = 0.15; // Default 15% tolerance
     
     if (batterySoc !== undefined) {
@@ -300,9 +300,9 @@ export class ZaptecService implements OnModuleInit {
         // Linear interpolation between 0% (at 60%) and 15% (at 90%)
         tolerancePercent = 0.15 * ((batterySoc - 60) / 30);
       } else if (batterySoc > 90) {
-        // Linear interpolation between 15% (at 90%) and 30% (at 100%)
-        tolerancePercent = 0.15 + 0.15 * ((batterySoc - 90) / 10);
-        tolerancePercent = Math.min(tolerancePercent, 0.30); // Cap at 30%
+        // Linear interpolation between 15% (at 90%) and 25% (at 100%)
+        tolerancePercent = 0.15 + 0.10 * ((batterySoc - 90) / 10);
+        tolerancePercent = Math.min(tolerancePercent, 0.25); // Cap at 25%
       }
     }
     
