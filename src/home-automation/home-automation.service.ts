@@ -234,8 +234,8 @@ export class HomeAutomationService implements OnModuleInit {
     if (zaptecStatus.vehicleConnected) {
       // Vehicle connected - let optimizeCharging handle all power decisions
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
+      this.logger.log(`Surplus mode: Processing ${chargingPower}W available for charging`, this.context);
       await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
-      this.logger.debug(`Surplus mode: Processing ${chargingPower}W available for charging`, this.context);
     } else if (zaptecStatus.charging) {
       // Vehicle disconnected but charging active
       await this.zaptecService.setChargingEnabled(false);
