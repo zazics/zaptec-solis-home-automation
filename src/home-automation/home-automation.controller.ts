@@ -5,7 +5,7 @@ import {
   AutomationConfig,
   AutomationStatus,
   ConfigUpdateResponse,
-  DashboardResponse,
+  DashboardResponse
 } from './models/home-automation.model';
 
 /**
@@ -55,16 +55,12 @@ export class HomeAutomationController {
   public async updateConfig(@Body() config: Partial<AutomationConfig>): Promise<ConfigUpdateResponse> {
     try {
       // Validation basique
-      if (config.minSurplusPower !== undefined && config.minSurplusPower < 0) {
-        throw new HttpException('minSurplusPower must be positive', HttpStatus.BAD_REQUEST);
-      }
-
       if (config.maxChargingPower !== undefined && config.maxChargingPower < 0) {
         throw new HttpException('maxChargingPower must be positive', HttpStatus.BAD_REQUEST);
       }
 
-      if (config.mode !== undefined && !['surplus', 'scheduled', 'manual'].includes(config.mode)) {
-        throw new HttpException('mode must be one of: surplus, scheduled, manual', HttpStatus.BAD_REQUEST);
+      if (config.mode !== undefined && !['surplus', 'manual'].includes(config.mode)) {
+        throw new HttpException('mode must be one of: surplus, manual', HttpStatus.BAD_REQUEST);
       }
 
       const updatedConfig = await this.homeAutomationService.updateConfig(config);
@@ -72,7 +68,7 @@ export class HomeAutomationController {
       return {
         success: true,
         config: updatedConfig,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -93,7 +89,7 @@ export class HomeAutomationController {
       return {
         success: true,
         message: 'Automation enabled',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       throw new HttpException('Failed to enable automation', HttpStatus.SERVICE_UNAVAILABLE);
@@ -111,7 +107,7 @@ export class HomeAutomationController {
       return {
         success: true,
         message: 'Automation disabled',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       throw new HttpException('Failed to disable automation', HttpStatus.SERVICE_UNAVAILABLE);
@@ -129,7 +125,7 @@ export class HomeAutomationController {
       return {
         success: true,
         message: 'Manual automation cycle executed',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       throw new HttpException('Failed to run manual automation', HttpStatus.SERVICE_UNAVAILABLE);
@@ -156,9 +152,9 @@ export class HomeAutomationController {
             status.solarProduction > 0 ? Math.round((status.availableForCharging / status.solarProduction) * 100) : 0,
           chargingEfficiency: status.chargingStatus.active
             ? Math.round((status.chargingStatus.power / status.availableForCharging) * 100)
-            : 0,
+            : 0
         },
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       throw new HttpException('Failed to get dashboard data', HttpStatus.SERVICE_UNAVAILABLE);

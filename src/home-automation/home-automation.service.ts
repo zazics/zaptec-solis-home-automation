@@ -59,7 +59,6 @@ export class HomeAutomationService implements OnModuleInit {
     this.config = {
       enabled: Constants.AUTOMATION.ENABLED,
       mode: Constants.AUTOMATION.MODE,
-      minSurplusPower: Constants.AUTOMATION.MIN_SURPLUS_POWER,
       maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
       priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE
     };
@@ -232,16 +231,12 @@ export class HomeAutomationService implements OnModuleInit {
     solisData: SolisInverterData,
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
-    if (availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
-      // Enough surplus and vehicle connected
+    if (zaptecStatus.vehicleConnected) {
+      // Vehicle connected - let optimizeCharging handle all power decisions
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
       await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
-      this.logger.log(`Surplus mode: Starting/optimizing charging with ${chargingPower}W`, this.context);
-    } else if (availablePower < this.config.minSurplusPower && zaptecStatus.charging) {
-      //not enough surplus and charging
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Surplus mode: Stopping charging - insufficient surplus', this.context);
-    } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
+      this.logger.debug(`Surplus mode: Processing ${chargingPower}W available for charging`, this.context);
+    } else if (zaptecStatus.charging) {
       // Vehicle disconnected but charging active
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Surplus mode: Stopping charging - vehicle disconnected', this.context);

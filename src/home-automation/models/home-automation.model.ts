@@ -15,7 +15,6 @@ export interface AutomationStatus {
 export interface AutomationConfig {
   enabled: boolean;
   mode: 'surplus' | 'manual';
-  minSurplusPower: number; // Minimum surplus power to start charging (W)
   maxChargingPower: number; // Maximum charging power (W)
   priorityLoadReserve: number; // Power to reserve for priority loads (W)
 }

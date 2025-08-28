@@ -87,9 +87,6 @@ export class Constants {
       return (process.env.AUTOMATION_MODE as 'surplus' | 'manual') || 'surplus';
     },
 
-    get MIN_SURPLUS_POWER(): number {
-      return _.toNumber(process.env.MIN_SURPLUS_POWER);
-    },
 
     get MAX_CHARGING_POWER(): number {
       return _.toNumber(process.env.MAX_CHARGING_POWER) || 7360;
