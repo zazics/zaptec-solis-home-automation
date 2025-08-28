@@ -171,13 +171,14 @@ export class Constants {
      * Belgium coordinates (Brussels area)
      */
     get LATITUDE(): number {
-      return _.toNumber(process.env.LATITUDE) || 50.8503; // Brussels latitude
+      return _.toNumber(process.env.LATITUDE);
     },
 
     get LONGITUDE(): number {
-      return _.toNumber(process.env.LONGITUDE) || 4.3517; // Brussels longitude
+      return _.toNumber(process.env.LONGITUDE);
     }
   };
+
 
   /**
    * Tapo Smart Plugs Configuration

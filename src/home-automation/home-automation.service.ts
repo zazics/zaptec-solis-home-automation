@@ -43,6 +43,7 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
   @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
   @Inject(TapoService) private readonly tapoService: TapoService;
+
   @Inject(LoggingService) private readonly logger: LoggingService;
 
   private config: AutomationConfig;
@@ -72,7 +73,7 @@ export class HomeAutomationService implements OnModuleInit {
    * Automated task that runs every minute to optimize charging
    */
   //@Cron(CronExpression.EVERY_HOUR)
-  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
     if (!this.config.enabled || !this.automationEnabled) {
       return;
@@ -232,7 +233,11 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Surplus mode: charge only when there is solar surplus
    */
-  private async executeSurplusMode(availablePower: number, solisData: SolisInverterData, zaptecStatus: ZaptecStatus): Promise<void> {
+  private async executeSurplusMode(
+    availablePower: number,
+    solisData: SolisInverterData,
+    zaptecStatus: ZaptecStatus
+  ): Promise<void> {
     if (availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
       // Enough surplus and vehicle connected
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
@@ -252,7 +257,11 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Scheduled mode: charge during defined hours if surplus available
    */
-  private async executeScheduledMode(availablePower: number, solisData: SolisInverterData, zaptecStatus: ZaptecStatus): Promise<void> {
+  private async executeScheduledMode(
+    availablePower: number,
+    solisData: SolisInverterData,
+    zaptecStatus: ZaptecStatus
+  ): Promise<void> {
     const currentHour = new Date().getHours().toString();
     const isScheduledHour = this.config.scheduledHours.includes(currentHour);
 
