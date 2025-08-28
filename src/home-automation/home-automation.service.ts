@@ -70,7 +70,7 @@ export class HomeAutomationService implements OnModuleInit {
    * Automated task that runs every minute to optimize charging
    */
   //@Cron(CronExpression.EVERY_HOUR)
-  // @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_MINUTE)
   public async runAutomation(): Promise<void> {
     if (!this.config.enabled || !this.automationEnabled) {
       return;
