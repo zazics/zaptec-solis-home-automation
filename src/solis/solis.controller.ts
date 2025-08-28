@@ -7,7 +7,7 @@ import {
   SolisHouseData,
   SolisGridData,
   SolisBatteryData,
-  SolisInverterData,
+  SolisInverterData
 } from './models/solis.model';
 
 /**
@@ -126,23 +126,6 @@ export class SolisController {
       return await this.solisService.getAllData();
     } catch (error) {
       throw new HttpException('Failed to get all inverter data', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
-
-  /**
-   * Tests the RS485 communication connection to the Solis inverter
-   * @returns {Promise<ConnectionTestResponse>} Connection status and timestamp
-   */
-  @Get('test')
-  public async testConnection(): Promise<ConnectionTestResponse> {
-    try {
-      const isConnected = await this.solisService.testConnection();
-      return {
-        connected: isConnected,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      throw new HttpException('Connection test failed', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 

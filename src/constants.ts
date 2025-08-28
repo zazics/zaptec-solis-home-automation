@@ -83,8 +83,8 @@ export class Constants {
       return process.env.AUTOMATION_ENABLED === 'true';
     },
 
-    get MODE(): 'surplus' | 'scheduled' | 'manual' {
-      return (process.env.AUTOMATION_MODE as 'surplus' | 'scheduled' | 'manual') || 'surplus';
+    get MODE(): 'surplus' | 'manual' {
+      return (process.env.AUTOMATION_MODE as 'surplus' | 'manual') || 'surplus';
     },
 
     get MIN_SURPLUS_POWER(): number {
@@ -95,9 +95,6 @@ export class Constants {
       return _.toNumber(process.env.MAX_CHARGING_POWER) || 7360;
     },
 
-    get SCHEDULED_HOURS(): string[] {
-      return process.env.SCHEDULED_HOURS?.split(',') || ['10', '11', '12', '13', '14', '15', '16'];
-    },
 
     get PRIORITY_LOAD_RESERVE(): number {
       return _.toNumber(process.env.PRIORITY_LOAD_RESERVE);

@@ -20,7 +20,6 @@ import { TapoService } from '../tapo/tapo.service';
  *
  * Automation Modes:
  * - **Surplus Mode**: Charges only when solar production exceeds house consumption
- * - **Scheduled Mode**: Time-based charging with surplus consideration
  * - **Manual Mode**: Direct control without automation
  *
  * Features:
@@ -28,7 +27,7 @@ import { TapoService } from '../tapo/tapo.service';
  * - Dynamic charging current adjustment based on available surplus
  * - Load balancing with configurable priority load reserves
  * - Historical data logging and analysis (when MongoDB enabled)
- * - Scheduled automation cycles with configurable intervals
+ * - Automated cycles with configurable intervals
  * - Vehicle detection and charging session management
  * - Safety thresholds and maximum power limits
  *
@@ -62,7 +61,6 @@ export class HomeAutomationService implements OnModuleInit {
       mode: Constants.AUTOMATION.MODE,
       minSurplusPower: Constants.AUTOMATION.MIN_SURPLUS_POWER,
       maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
-      scheduledHours: Constants.AUTOMATION.SCHEDULED_HOURS,
       priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE
     };
 
@@ -219,10 +217,6 @@ export class HomeAutomationService implements OnModuleInit {
         await this.executeSurplusMode(availablePower, solisData, zaptecStatus);
         break;
 
-      case 'scheduled':
-        await this.executeScheduledMode(availablePower, solisData, zaptecStatus);
-        break;
-
       case 'manual':
         // Manual mode - no automation
         this.logger.debug('Manual mode - no automatic control', this.context);
@@ -255,36 +249,6 @@ export class HomeAutomationService implements OnModuleInit {
   }
 
   /**
-   * Scheduled mode: charge during defined hours if surplus available
-   */
-  private async executeScheduledMode(
-    availablePower: number,
-    solisData: SolisInverterData,
-    zaptecStatus: ZaptecStatus
-  ): Promise<void> {
-    const currentHour = new Date().getHours().toString();
-    const isScheduledHour = this.config.scheduledHours.includes(currentHour);
-
-    if (isScheduledHour && availablePower >= this.config.minSurplusPower && zaptecStatus.vehicleConnected) {
-      // Scheduled hour, surplus available and vehicle connected
-      const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
-      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
-      this.logger.log(
-        `Scheduled mode: Charging with ${chargingPower}W during scheduled hour ${currentHour}`,
-        this.context
-      );
-    } else if (!isScheduledHour && zaptecStatus.charging) {
-      // Outside scheduled time slot
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Scheduled mode: Stopping charging - outside scheduled hours', this.context);
-    } else if (!zaptecStatus.vehicleConnected && zaptecStatus.charging) {
-      // Vehicle disconnected
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Scheduled mode: Stopping charging - vehicle disconnected', this.context);
-    }
-  }
-
-  /**
    * Retrieves complete automation status
    */
   public async getAutomationStatus(): Promise<AutomationStatus> {
@@ -301,7 +265,7 @@ export class HomeAutomationService implements OnModuleInit {
         availableForCharging: availablePower,
         chargingStatus: {
           active: zaptecStatus.charging,
-          current: 0, // zaptecStatus.current,
+          current: zaptecStatus.ChargeCurrentSet,
           power: zaptecStatus.power
         },
         mode: this.config.mode
