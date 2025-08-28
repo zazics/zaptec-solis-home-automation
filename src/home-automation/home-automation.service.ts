@@ -31,7 +31,7 @@ import { TapoService } from '../tapo/tapo.service';
  * - Vehicle detection and charging session management
  * - Safety thresholds and maximum power limits
  *
- * The service runs automated cycles every 30 seconds to evaluate current conditions
+ * The service runs automated cycles every minute to evaluate current conditions
  * and adjust charging parameters accordingly, ensuring optimal energy utilization
  * while respecting safety limits and user preferences.
  */

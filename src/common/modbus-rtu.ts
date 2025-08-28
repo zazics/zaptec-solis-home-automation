@@ -72,11 +72,11 @@ export class ModbusRTU {
   }
 
   /**
-   * Vérifie le CRC d'une réponse Modbus RTU
+   * Vérifie le CRC d'une réponse Modbus RTU complète
    * @param data - Données reçues incluant le CRC
    * @returns true si le CRC est valide, false sinon
    */
-  public static verifyCRC(data: Buffer): boolean {
+  public static verifyFrameCRC(data: Buffer): boolean {
     if (data.length < 3) return false;
 
     const frameData = Array.from(data.slice(0, data.length - 2));
@@ -94,7 +94,7 @@ export class ModbusRTU {
   public static parseResponse(data: Buffer): ModbusResponse | null {
     if (!data || data.length < 5) return null;
 
-    if (!this.verifyCRC(data)) {
+    if (!this.verifyFrameCRC(data)) {
       return { error: 'CRC invalide' };
     }
 
@@ -122,6 +122,66 @@ export class ModbusRTU {
       dataLength,
       data: responseData,
     };
+  }
+
+  /**
+   * Vérifie si une trame Modbus RTU est complète
+   * @param buffer - Buffer contenant les données reçues
+   * @returns true si la trame est complète et valide
+   */
+  public static isFrameComplete(buffer: Buffer): boolean {
+    // 1. MINIMUM SIZE: Au moins 5 bytes (Slave + Function + Length + CRC)
+    if (buffer.length < 5) {
+      return false;
+    }
+
+    const functionCode = buffer[1]!
+
+    // 2. HANDLE ERROR RESPONSES: Format différent pour les erreurs
+    if (functionCode & 0x80) {
+      // Réponse d'erreur: [Slave][Function+0x80][Exception][CRC_Low][CRC_High] = 5 bytes
+      if (buffer.length < 5) {
+        return false;
+      }
+      // Vérifier CRC pour réponse d'erreur
+      return this.verifyCRC(buffer, 5);
+    }
+
+    // 3. NORMAL RESPONSE: Extract expected length from byte 2
+    const dataLength = buffer[2]!;
+    const expectedTotalLength = 3 + dataLength + 2; // Header(3) + Data + CRC(2)
+
+    // 4. CHECK if we have all expected bytes
+    if (buffer.length < expectedTotalLength) {
+      return false; // Still waiting for more data
+    }
+
+    // 5. VERIFY CRC for data integrity
+    return this.verifyCRC(buffer, expectedTotalLength);
+  }
+
+  /**
+   * Vérifie le CRC d'une trame Modbus
+   * @param buffer - Buffer contenant la trame
+   * @param length - Longueur attendue de la trame
+   * @returns true si le CRC est correct
+   */
+  private static verifyCRC(buffer: Buffer, length: number): boolean {
+    if (buffer.length < length) {
+      return false;
+    }
+
+    // Extract received CRC (last 2 bytes, little-endian)
+    const receivedCRCLow = buffer[length - 2]!;
+    const receivedCRCHigh = buffer[length - 1]!;
+    const receivedCRC = (receivedCRCHigh << 8) | receivedCRCLow;
+
+    // Calculate expected CRC on all data except CRC bytes
+    const dataForCRC = Array.from(buffer.slice(0, length - 2));
+    const [expectedCRCLow, expectedCRCHigh] = this.calculateCRC(dataForCRC);
+    const expectedCRC = (expectedCRCHigh << 8) | expectedCRCLow;
+
+    return receivedCRC === expectedCRC;
   }
 
   /**

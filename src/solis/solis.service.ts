@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Inject } from '@nestjs/common';
 import { SerialPort } from 'serialport';
+import { setTimeout as delay } from 'node:timers/promises';
 import { ModbusRTU, ModbusFunctionCode } from '../common/modbus-rtu';
 import { LoggingService } from '../common/logging.service';
 import {
@@ -47,7 +48,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   private options: Required<SolisConnectionOptions>;
 
   // Delay between Modbus commands (in ms)
-  private static readonly COMMAND_DELAY = 50;
+  private static readonly COMMAND_DELAY = 20; // Minimal delay between consecutive Modbus commands
 
   // Solis register mapping (Modbus addresses)
   private static readonly REGISTERS = {
@@ -164,13 +165,25 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Reads one or more Modbus registers
+   * Reads one or more Modbus registers from the Solis inverter
+   * 
+   * Process Modbus RTU communication:
+   * 1. Create request frame with slave ID, function code, register address
+   * 2. Send frame via RS485 serial port
+   * 3. Listen for response data chunks (can arrive in multiple packets)
+   * 4. Parse complete response and extract register values
    */
   private async readRegisters(startAddr: number, quantity: number = 1): Promise<number[]> {
+    // 1. VALIDATION: Ensure we have an active serial connection
     if (!this.isConnected || !this.port) {
       throw new Error('Not connected to inverter');
     }
 
+    // 2. BUILD REQUEST: Create Modbus RTU frame with:
+    //    - Slave ID (inverter address, usually 1)
+    //    - Function Code 04 (Read Input Registers)
+    //    - Register start address (e.g., 33049 for PV power)
+    //    - Number of registers to read
     const frame = ModbusRTU.createReadFrame(
       this.options.slaveId,
       ModbusFunctionCode.READ_INPUT_REGISTERS,
@@ -179,44 +192,64 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
     );
 
     return new Promise((resolve, reject) => {
-      let responseData = Buffer.alloc(0);
-      let timeout: NodeJS.Timeout;
+      // 3. RESPONSE HANDLING: Prepare to collect response data
+      let responseData = Buffer.alloc(0); // Accumulator for incoming data chunks
+      let timeout: NodeJS.Timeout; // Timeout handler for response completion
 
+      // 4. DATA RECEPTION: Handle incoming serial data
       const onData = (data: Buffer): void => {
+        // Append new data chunk to accumulated response
         responseData = Buffer.concat([responseData, data]);
-        clearTimeout(timeout);
-
-        timeout = setTimeout(() => {
+        
+        // INTELLIGENT PARSING: Check if frame is complete immediately
+        if (ModbusRTU.isFrameComplete(responseData)) {
+          // Frame is complete - process immediately, no delay!
+          clearTimeout(timeout);
           this.port?.removeListener('data', onData);
 
+          // 5. PARSE RESPONSE: Extract Modbus data from raw bytes
           const response = ModbusRTU.parseResponse(responseData);
           if (!response || response.error) {
             reject(new Error(response?.error || 'Invalid response'));
             return;
           }
 
+          // 6. EXTRACT VALUES: Convert raw bytes to register values
           if (response.data) {
             const registers = ModbusRTU.parseRegisters(response.data);
-            resolve(registers);
+            resolve(registers); // Return array of register values
           } else {
             reject(new Error('No data received'));
           }
-        }, 200);
+        } else {
+          // Frame not complete yet - reset timeout and wait for more data
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            // Fallback timeout if frame never completes
+            this.port?.removeListener('data', onData);
+            reject(new Error('Incomplete frame - timeout waiting for remaining data'));
+          }, 50); // Reduced fallback timeout to 50ms
+        }
       };
 
+      // 7. SETUP LISTENERS: Start listening for serial port data
       this.port?.on('data', onData);
 
+      // 8. TIMEOUT PROTECTION: Prevent hanging if inverter doesn't respond
       timeout = setTimeout(() => {
         this.port?.removeListener('data', onData);
         reject(new Error('Timeout'));
-      }, this.options.responseTimeout);
+      }, this.options.responseTimeout); // Usually 2000ms
 
+      // 9. SEND REQUEST: Transmit Modbus frame to inverter via RS485
       this.port?.write(frame, (err) => {
         if (err) {
+          // Clean up on write error
           this.port?.removeListener('data', onData);
           clearTimeout(timeout);
           reject(err);
         }
+        // If write successful, wait for response in onData handler
       });
     });
   }
@@ -226,19 +259,19 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async getPVData(): Promise<SolisPVData> {
     const totalPowerRegs = await this.readRegisters(SolisService.REGISTERS.PV_TOTAL_POWER, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const pv1Voltage = await this.readRegisters(SolisService.REGISTERS.PV1_VOLTAGE);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const pv1Current = await this.readRegisters(SolisService.REGISTERS.PV1_CURRENT);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const pv2Voltage = await this.readRegisters(SolisService.REGISTERS.PV2_VOLTAGE);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const pv2Current = await this.readRegisters(SolisService.REGISTERS.PV2_CURRENT);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const pv1V = (pv1Voltage[0] || 0) / 10;
     const pv1A = (pv1Current[0] || 0) / 10;
@@ -268,10 +301,10 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async getACData(): Promise<SolisACData> {
     const powerRegs = await this.readRegisters(SolisService.REGISTERS.AC_TOTAL_POWER);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const tempRegs = await this.readRegisters(SolisService.REGISTERS.TEMPERATURE);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     return {
       totalPowerAC: ((powerRegs[0] || 0) / 100) * 1000,
@@ -285,10 +318,10 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async getHouseData(): Promise<SolisHouseData> {
     const consumption = await this.readRegisters(SolisService.REGISTERS.HOUSE_CONSUMPTION);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const backupConsumption = await this.readRegisters(SolisService.REGISTERS.BACKUP_CONSUMPTION);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     return {
       consumption: consumption[0] || 0,
@@ -301,16 +334,16 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async getGridData(): Promise<SolisGridData> {
     const activePowerRegs = await this.readRegisters(SolisService.REGISTERS.GRID_ACTIVE_POWER, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const inverterPowerRegs = await this.readRegisters(SolisService.REGISTERS.INVERTER_AC_POWER, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const importedEnergyRegs = await this.readRegisters(SolisService.REGISTERS.GRID_IMPORTED_ENERGY, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const exportedEnergyRegs = await this.readRegisters(SolisService.REGISTERS.GRID_EXPORTED_ENERGY, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const activePower = activePowerRegs.length >= 2 ? (activePowerRegs[0]! << 16) | activePowerRegs[1]! : 0;
     const inverterPower = inverterPowerRegs.length >= 2 ? (inverterPowerRegs[0]! << 16) | inverterPowerRegs[1]! : 0;
@@ -332,23 +365,23 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async getBatteryData(): Promise<SolisBatteryData> {
     const batteryPowerRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_POWER, 2);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const socRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_SOC);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const voltageRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_VOLTAGE);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const currentRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_CURRENT);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const directionRegs = await this.readRegisters(SolisService.REGISTERS.BATTERY_CURRENT_DIRECTION);
-    await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    await delay(SolisService.COMMAND_DELAY);
 
     const batteryPowerRaw = batteryPowerRegs.length >= 2 ? (batteryPowerRegs[0]! << 16) | batteryPowerRegs[1]! : 0;
     const direction = directionRegs[0] || 0; // 0=charge, 1=discharge
-    
+
     // Apply sign based on direction: negative for charging, positive for discharging
     const batteryPower = direction === 1 ? batteryPowerRaw : -batteryPowerRaw;
 
@@ -507,7 +540,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
 
     // TODO: find right status registers
     // const status = await this.getStatus();
-    // await new Promise((resolve) => setTimeout(resolve, SolisService.COMMAND_DELAY));
+    // await delay(SolisService.COMMAND_DELAY);
 
     const pv = await this.getPVData();
 
