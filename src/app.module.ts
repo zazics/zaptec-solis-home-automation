@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { SolisModule } from './solis/solis.module';
 import { ZaptecModule } from './zaptec/zaptec.module';
 import { HomeAutomationModule } from './home-automation/home-automation.module';
+import { WeatherModule } from './weather/weather.module';
 import { LoggingService } from './common/logging.service';
 
 @Module({
@@ -25,6 +26,7 @@ import { LoggingService } from './common/logging.service';
     SolisModule,
     ZaptecModule,
     HomeAutomationModule,
+    WeatherModule,
   ],
   controllers: [AppController],
   providers: [AppService, LoggingService],

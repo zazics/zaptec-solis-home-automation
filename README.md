@@ -63,10 +63,8 @@ Configure the following variables in your `.env` file:
 #### Automation Settings
 
 - `AUTOMATION_ENABLED=true` - Enable/disable automation (default: true)
-- `AUTOMATION_MODE=surplus` - Control mode: surplus/scheduled/manual (default: surplus)
-- `MIN_SURPLUS_POWER=500` - Minimum solar surplus to start charging in W (default: 500)
+- `AUTOMATION_MODE=surplus` - Control mode: surplus/manual (default: surplus)
 - `MAX_CHARGING_POWER=7360` - Maximum charging power in W (default: 7360)
-- `SCHEDULED_HOURS=10,11,12,13,14,15,16` - Hours for scheduled mode (default: 10-16)
 - `PRIORITY_LOAD_RESERVE=500` - Power reserve for priority loads in W (default: 500)
 - `MONGODB_SAVE_FREQUENCY=3` - Save data to MongoDB every N cycles (default: 3)
 
@@ -183,8 +181,7 @@ The application provides comprehensive REST API endpoints:
 - **Simulation Mode**: Built-in data simulation for testing and development
 
 ### Automation Modes
-- **Surplus Mode**: Charge only when solar production exceeds household consumption
-- **Scheduled Mode**: Time-based charging during specified hours with surplus consideration
+- **Surplus Mode**: Charge only when solar production exceeds household consumption with intelligent battery SOC-based tolerances
 - **Manual Mode**: Complete manual control without automation
 
 ### Technical Features

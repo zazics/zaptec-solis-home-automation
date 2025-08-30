@@ -145,6 +145,28 @@ export class Constants {
     }
   };
 
+
+  /**
+   * Solar Panel Configuration
+   */
+  public static SOLAR_PANEL = {
+    get CAPACITY_W(): number {
+      return _.toNumber(process.env.SOLAR_PANEL_CAPACITY_W) || 9000; // 9kW default (18 × 500W panels)
+    },
+
+    get EFFICIENCY(): number {
+      return _.toNumber(process.env.SOLAR_PANEL_EFFICIENCY) || 0.20; // 20% efficiency default
+    },
+
+    get TEMPERATURE_COEFFICIENT(): number {
+      return _.toNumber(process.env.SOLAR_TEMPERATURE_COEFFICIENT) || -0.004; // -0.4%/°C default
+    },
+
+    get SYSTEM_LOSSES(): number {
+      return _.toNumber(process.env.SOLAR_SYSTEM_LOSSES) || 0.12; // 12% system losses default
+    }
+  };
+
   /**
    * Power System Constants
    */
@@ -165,11 +187,11 @@ export class Constants {
      * Belgium coordinates (Brussels area)
      */
     get LATITUDE(): number {
-      return _.toNumber(process.env.LATITUDE);
+      return _.toNumber(process.env.LATITUDE) || 50.85; // Brussels default
     },
 
     get LONGITUDE(): number {
-      return _.toNumber(process.env.LONGITUDE);
+      return _.toNumber(process.env.LONGITUDE) || 4.35; // Brussels default
     }
   };
 
