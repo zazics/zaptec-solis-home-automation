@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { WeatherService } from './weather.service';
+import { WeatherController } from './weather.controller';
 import { SolarForecastService } from './solar-forecast.service';
 
 /**
@@ -13,7 +14,7 @@ import { SolarForecastService } from './solar-forecast.service';
  */
 @Module({
   imports: [],
-  controllers: [],
+  controllers: [WeatherController],
   providers: [WeatherService, SolarForecastService],
   exports: [WeatherService, SolarForecastService],
 })
