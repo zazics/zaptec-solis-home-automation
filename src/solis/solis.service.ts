@@ -108,6 +108,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
       retryDelay: Constants.SOLIS.RETRY_DELAY
     };
 
+    if (Constants.SOLIS.SIMULATE_DATA) {
+      this.isConnected = true;
+      this.logger.log('Running in simulation mode - Solis inverter connection simulated', this.context);
+      return;
+    }
+
     try {
       await this.connect();
       this.logger.log('Successfully connected to Solis inverter', this.context);
@@ -126,6 +132,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    */
   public async connect(): Promise<void> {
     if (this.isConnected) return;
+
+    if (Constants.SOLIS.SIMULATE_DATA) {
+      this.isConnected = true;
+      this.logger.log('Solis inverter connection simulated', this.context);
+      return;
+    }
 
     this.port = new SerialPort({
       path: this.portName,
@@ -153,6 +165,12 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
    * Closes the connection with the inverter
    */
   public async disconnect(): Promise<void> {
+    if (Constants.SOLIS.SIMULATE_DATA) {
+      this.isConnected = false;
+      this.logger.log('Solis inverter connection simulation ended', this.context);
+      return;
+    }
+
     if (this.port?.isOpen) {
       return new Promise((resolve) => {
         this.port?.close(() => {
