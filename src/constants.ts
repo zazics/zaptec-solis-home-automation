@@ -6,6 +6,14 @@ import 'dotenv/config';
  */
 export class Constants {
   /**
+   * Global Simulation Configuration
+   */
+  public static SIMULATION = {
+    get ENABLED(): boolean {
+      return process.env.SIMULATE_DATA === 'true';
+    }
+  };
+  /**
    * Solis Inverter Configuration
    */
   public static SOLIS = {
@@ -46,7 +54,7 @@ export class Constants {
     },
 
     get SIMULATE_DATA(): boolean {
-      return process.env.SOLIS_SIMULATE_DATA === 'true';
+      return Constants.SIMULATION.ENABLED;
     }
   };
 
@@ -72,6 +80,10 @@ export class Constants {
 
     get CLIENT_ID(): string {
       return process.env.ZAPTEC_CLIENT_ID || 'Zaptec App';
+    },
+
+    get SIMULATE_DATA(): boolean {
+      return Constants.SIMULATION.ENABLED;
     }
   };
 

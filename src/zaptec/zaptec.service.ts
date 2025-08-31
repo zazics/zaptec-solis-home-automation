@@ -191,6 +191,11 @@ export class ZaptecService implements OnModuleInit {
    */
   public async getChargerStatus(): Promise<ZaptecStatus> {
     try {
+      // Check if simulation is enabled
+      if (Constants.ZAPTEC.SIMULATE_DATA) {
+        return this.generateSimulatedZaptecStatus();
+      }
+
       // Get basic charger info
       const chargerInfo = await this.apiCall<ZaptecChargerInfo>(`/chargers/${this.chargerId}`);
 
@@ -292,7 +297,7 @@ export class ZaptecService implements OnModuleInit {
     // Calculate tolerance based on battery SOC
     // No tolerance if battery < 60%, proportional tolerance up to 25% if battery > 90%
     let tolerancePercent = 0.15; // Default 15% tolerance
-    
+
     if (batterySoc !== undefined) {
       if (batterySoc < 60) {
         tolerancePercent = 0; // No tolerance below 60%
@@ -301,16 +306,16 @@ export class ZaptecService implements OnModuleInit {
         tolerancePercent = 0.15 * ((batterySoc - 60) / 30);
       } else if (batterySoc > 90) {
         // Linear interpolation between 15% (at 90%) and 25% (at 100%)
-        tolerancePercent = 0.15 + 0.10 * ((batterySoc - 90) / 10);
+        tolerancePercent = 0.15 + 0.1 * ((batterySoc - 90) / 10);
         tolerancePercent = Math.min(tolerancePercent, 0.25); // Cap at 25%
       }
     }
-    
+
     const minPowerWithTolerance = minPowerFor6A * (1 - tolerancePercent);
-    
+
     this.logger.debug(
       `Battery SOC: ${batterySoc}%, tolerance: ${(tolerancePercent * 100).toFixed(1)}%, ` +
-      `min power threshold: ${minPowerWithTolerance.toFixed(0)}W`,
+        `min power threshold: ${minPowerWithTolerance.toFixed(0)}W`,
       this.context
     );
 
@@ -464,17 +469,71 @@ export class ZaptecService implements OnModuleInit {
     return this.statusCacheTimestamp;
   }
 
+
   /**
-   * Tests connectivity with the Zaptec API
+   * Generates simulated Zaptec charger status for development/testing
+   * @returns Simulated ZaptecStatus with realistic data
    */
-  public async testConnection(): Promise<boolean> {
-    try {
-      await this.authenticate();
-      await this.getChargerStatus();
-      return true;
-    } catch (error) {
-      this.logger.error('Zaptec connection test failed', error, this.context);
-      return false;
-    }
+  private generateSimulatedZaptecStatus(): ZaptecStatus {
+    const now = Date.now();
+    const scenarios = [
+      {
+        name: 'Charging High Power',
+        charging: true,
+        power: 7200,
+        current: 32,
+        vehicleConnected: true,
+        operatingMode: '3' // Connected_Charging
+      },
+      {
+        name: 'Charging Medium Power',
+        charging: true,
+        power: 3680,
+        current: 16,
+        vehicleConnected: true,
+        operatingMode: '3' // Connected_Charging
+      },
+      {
+        name: 'Vehicle Connected Not Charging',
+        charging: false,
+        power: 0,
+        current: 0,
+        vehicleConnected: true,
+        operatingMode: '5' // Connected_Finished
+      },
+      {
+        name: 'No Vehicle',
+        charging: false,
+        power: 0,
+        current: 0,
+        vehicleConnected: false,
+        operatingMode: '1' // Disconnected
+      }
+    ];
+
+    // Cycle through scenarios every 2 minutes for demo purposes
+    const scenarioIndex = Math.floor((now / (2 * 60 * 1000)) % scenarios.length);
+    const scenario = scenarios[scenarioIndex];
+
+    const simulatedStatus: ZaptecStatus = {
+      id: Constants.ZAPTEC.CHARGER_ID || 'simulated-charger-001',
+      name: 'Simulated Zaptec Charger',
+      online: true,
+      charging: scenario.charging,
+      power: scenario.power,
+      totalPower: 125000 + (now % 50000), // Simulate gradually increasing total
+      ChargeCurrentSet: scenario.current,
+      vehicleConnected: scenario.vehicleConnected,
+      operatingMode: scenario.operatingMode,
+      deviceType: 2,
+      serialNo: 'SIM000001'
+    };
+
+    this.logger.log(
+      `Generated simulated Zaptec status: ${scenario.name} - Power: ${scenario.power}W, Current: ${scenario.current}A`,
+      this.context
+    );
+
+    return simulatedStatus;
   }
 }

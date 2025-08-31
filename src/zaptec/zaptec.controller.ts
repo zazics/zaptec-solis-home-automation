@@ -1,6 +1,6 @@
 import { Controller, Get, HttpException, HttpStatus, Query, Inject } from '@nestjs/common';
 import { ZaptecService } from './zaptec.service';
-import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
+import { ZaptecStatus } from './models/zaptec.model';
 
 /**
  * Controller for managing Zaptec EV charging station operations
@@ -10,8 +10,6 @@ import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
 export class ZaptecController {
   @Inject(ZaptecService)
   private readonly zaptecService: ZaptecService;
-
-  constructor() {}
 
   /**
    * Retrieves the current status of the Zaptec charging station
@@ -25,7 +23,6 @@ export class ZaptecController {
       throw new HttpException('Failed to get charger status', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
-
 
   /**
    * Retrieves charging history for the specified number of days
@@ -46,20 +43,4 @@ export class ZaptecController {
     }
   }
 
-  /**
-   * Tests connectivity to the Zaptec API
-   * @returns {Promise<{connected: boolean, timestamp: string}>} Connection test result
-   */
-  @Get('test')
-  public async testConnection(): Promise<{ connected: boolean; timestamp: string }> {
-    try {
-      const isConnected = await this.zaptecService.testConnection();
-      return {
-        connected: isConnected,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      throw new HttpException('Connection test failed', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
 }
