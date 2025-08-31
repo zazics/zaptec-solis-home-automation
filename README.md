@@ -112,15 +112,14 @@ The application provides comprehensive REST API endpoints:
 - `GET /solis/ac` - Get AC output data (frequency, temperature)
 - `GET /solis/all` - Get complete inverter data in single request
 
-#### Zaptec Control
+#### Zaptec Control (Read-Only)
 
 - `GET /zaptec/status` - Get charging station status and capabilities
 - `GET /zaptec/installation` - Get installation-level information
 - `GET /zaptec/history?days=7` - Get charging session history
-- `POST /zaptec/current` - Set maximum available charging current
-- `POST /zaptec/charging` - Enable/disable charging session
-- `POST /zaptec/optimize` - Optimize charging based on available power
 - `GET /zaptec/test` - Test connectivity with Zaptec cloud API
+
+Note: Remote control endpoints have been removed for security. The system now operates in monitoring mode only.
 
 #### Home Automation
 
@@ -130,7 +129,8 @@ The application provides comprehensive REST API endpoints:
 - `POST /automation/enable` - Enable automatic control
 - `POST /automation/disable` - Disable automatic control
 - `PUT /automation/config` - Update automation configuration
-- `POST /automation/run` - Manually trigger automation cycle
+
+Note: Manual automation trigger endpoint has been removed for security.
 
 #### Example API Responses
 

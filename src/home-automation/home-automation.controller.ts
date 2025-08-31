@@ -114,23 +114,6 @@ export class HomeAutomationController {
     }
   }
 
-  /**
-   * Manually triggers a single automation cycle
-   * @returns {Promise<AutomationActionResponse>} Operation result with success status and message
-   */
-  @Post('run')
-  public async runManualAutomation(): Promise<AutomationActionResponse> {
-    try {
-      await this.homeAutomationService.runManualAutomation();
-      return {
-        success: true,
-        message: 'Manual automation cycle executed',
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      throw new HttpException('Failed to run manual automation', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
 
   /**
    * Retrieves comprehensive dashboard data including status, config, and summary metrics

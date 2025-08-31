@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, HttpException, HttpStatus, Query, Inject } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Query, Inject } from '@nestjs/common';
 import { ZaptecService } from './zaptec.service';
 import { ApiResponse, ZaptecStatus } from './models/zaptec.model';
 
@@ -26,51 +26,6 @@ export class ZaptecController {
     }
   }
 
-  /**
-   * Sets the maximum charging current for the Zaptec station
-   * @param {number} maxCurrent - Maximum current in amperes (6-32A range)
-   * @returns {Promise<{success: boolean, message: string, timestamp: string}>} Operation result
-   */
-  @Post('current')
-  public async setMaxCurrent(@Body('maxCurrent') maxCurrent: number): Promise<ApiResponse> {
-    if (!maxCurrent || maxCurrent < 6 || maxCurrent > 32) {
-      throw new HttpException('Invalid current value. Must be between 6 and 32 amperes.', HttpStatus.BAD_REQUEST);
-    }
-
-    try {
-      await this.zaptecService.setMaxCurrent(maxCurrent);
-      return {
-        success: true,
-        message: `Max current set to ${maxCurrent}A`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      throw new HttpException('Failed to set max current', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
-
-  /**
-   * Enables or disables charging on the Zaptec station
-   * @param {boolean} enabled - True to enable charging, false to disable
-   * @returns {Promise<{success: boolean, message: string, timestamp: string}>} Operation result
-   */
-  @Post('charging')
-  public async setCharging(@Body('enabled') enabled: boolean): Promise<ApiResponse> {
-    if (typeof enabled !== 'boolean') {
-      throw new HttpException('Invalid enabled value. Must be boolean.', HttpStatus.BAD_REQUEST);
-    }
-
-    try {
-      await this.zaptecService.setChargingEnabled(enabled);
-      return {
-        success: true,
-        message: `Charging ${enabled ? 'enabled' : 'disabled'}`,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      throw new HttpException('Failed to set charging state', HttpStatus.SERVICE_UNAVAILABLE);
-    }
-  }
 
   /**
    * Retrieves charging history for the specified number of days
