@@ -7,7 +7,7 @@ import { LoggingService } from '../common/logging.service';
 import { TapoModule } from '../tapo/tapo.module';
 
 @Module({
-  imports: [SolisModule, ZaptecModule, SolisModule, TapoModule],
+  imports: [SolisModule, ZaptecModule, TapoModule],
   providers: [HomeAutomationService, LoggingService],
   controllers: [HomeAutomationController],
   exports: [HomeAutomationService]

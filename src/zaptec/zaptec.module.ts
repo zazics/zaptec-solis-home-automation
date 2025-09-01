@@ -1,11 +1,16 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { ZaptecService } from './zaptec.service';
-import { ZaptecController } from './zaptec.controller';
+import { ZaptecDataService } from './zaptec-data.service';
+import { ZaptecData, ZaptecDataSchema } from './schemas/zaptec-data.schema';
 import { LoggingService } from '../common/logging.service';
 
 @Module({
-  providers: [ZaptecService, LoggingService],
-  controllers: [ZaptecController],
-  exports: [ZaptecService],
+  imports: [
+    MongooseModule.forFeature([{ name: ZaptecData.name, schema: ZaptecDataSchema }])
+  ],
+  providers: [ZaptecService, ZaptecDataService, LoggingService],
+  controllers: [],
+  exports: [ZaptecService, ZaptecDataService],
 })
 export class ZaptecModule {}

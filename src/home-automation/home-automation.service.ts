@@ -3,10 +3,11 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { SolisService } from '../solis/solis.service';
 import { SolisDataService } from '../solis/solis-data.service';
 import { ZaptecService } from '../zaptec/zaptec.service';
+import { ZaptecDataService } from '../zaptec/zaptec-data.service';
 import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 import { SolisInverterData } from '../solis/models/solis.model';
-import { AutomationConfig, AutomationStatus } from './models/home-automation.model';
+import { AutomationConfig } from './models/home-automation.model';
 import { Constants } from '../constants';
 import * as SunCalc from 'suncalc';
 import { TapoService } from '../tapo/tapo.service';
@@ -41,6 +42,7 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(SolisService) private readonly solisService: SolisService;
   @Inject(SolisDataService) private readonly solisDataService: SolisDataService;
   @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
+  @Inject(ZaptecDataService) private readonly zaptecDataService: ZaptecDataService;
   @Inject(TapoService) private readonly tapoService: TapoService;
 
   @Inject(LoggingService) private readonly logger: LoggingService;
@@ -82,10 +84,8 @@ export class HomeAutomationService implements OnModuleInit {
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
 
-      // Store Solis data in MongoDB for historical analysis (according to frequency set)
-      if (this.automationRunCounter % Constants.AUTOMATION.MONGODB_SAVE_FREQUENCY === 0) {
-        await this.saveDataToMongoDB(solisData);
-      }
+      // Store Solis data in MongoDB for historical analysis (every cycle now)
+      await this.saveDataToMongoDB(solisData);
       this.automationRunCounter++;
 
       // Check if it's night time based on sunrise/sunset - no solar production expected
@@ -105,6 +105,9 @@ export class HomeAutomationService implements OnModuleInit {
 
       // Retrieve Zaptec charging station status first
       const zaptecStatus = await this.zaptecService.getChargerStatus();
+
+      // Save Zaptec data during daytime only
+      await this.saveZaptecDataToMongoDB(zaptecStatus);
 
       // Calculate available power (including current charging power)
       const availablePower = this.calculateAvailablePower(solisData, zaptecStatus);
@@ -243,33 +246,6 @@ export class HomeAutomationService implements OnModuleInit {
     }
   }
 
-  /**
-   * Retrieves complete automation status
-   */
-  public async getAutomationStatus(): Promise<AutomationStatus> {
-    try {
-      const solisData = await this.solisService.getAllData();
-      const zaptecStatus = await this.zaptecService.getChargerStatus();
-      const availablePower = this.calculateAvailablePower(solisData, zaptecStatus);
-
-      return {
-        enabled: this.config.enabled && this.automationEnabled,
-        lastUpdate: this.lastAutomationRun,
-        solarProduction: solisData.pv.totalPowerDC,
-        houseConsumption: solisData.house.consumption,
-        availableForCharging: availablePower,
-        chargingStatus: {
-          active: zaptecStatus.charging,
-          current: zaptecStatus.ChargeCurrentSet,
-          power: zaptecStatus.power
-        },
-        mode: this.config.mode
-      };
-    } catch (error) {
-      this.logger.error('Failed to get automation status', error, this.context);
-      throw error;
-    }
-  }
 
   /**
    * Updates automation configuration
@@ -309,12 +285,31 @@ export class HomeAutomationService implements OnModuleInit {
     try {
       await this.solisDataService.saveData(solisData);
       this.logger.debug(
-        `Solis data saved to MongoDB (run ${this.automationRunCounter}/${Constants.AUTOMATION.MONGODB_SAVE_FREQUENCY})`,
+        `Solis data saved to MongoDB (run ${this.automationRunCounter})`,
         this.context
       );
     } catch (mongoError) {
       this.logger.warn(
         `Failed to save data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
+        this.context
+      );
+      // Continue with automation even if MongoDB save fails
+    }
+  }
+
+  /**
+   * Saves Zaptec data to MongoDB (only during daytime)
+   */
+  private async saveZaptecDataToMongoDB(zaptecStatus: ZaptecStatus): Promise<void> {
+    try {
+      await this.zaptecDataService.saveData(zaptecStatus);
+      this.logger.debug(
+        `Zaptec data saved to MongoDB (run ${this.automationRunCounter})`,
+        this.context
+      );
+    } catch (mongoError) {
+      this.logger.warn(
+        `Failed to save Zaptec data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
         this.context
       );
       // Continue with automation even if MongoDB save fails

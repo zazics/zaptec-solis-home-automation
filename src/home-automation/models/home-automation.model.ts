@@ -51,3 +51,36 @@ export interface DashboardResponse {
   };
   timestamp: string;
 }
+
+/**
+ * Interface for daily Solis statistics
+ */
+export interface SolisDailyStats {
+  date: string;
+  maxPvPower: number;
+  avgPvPower: number;
+  maxAcPower: number;
+  avgAcPower: number;
+  maxHouseConsumption: number;
+  avgHouseConsumption: number;
+  maxGridInjection: number;
+  avgGridInjection: number;
+  totalDataPoints: number;
+  minBatterySoc: number;
+  maxBatterySoc: number;
+  avgBatterySoc: number;
+}
+
+/**
+ * Interface for daily Zaptec statistics
+ */
+export interface ZaptecDailyStats {
+  date: string;
+  totalRecords: number;
+  chargingTime: number;
+  chargingPercentage: number;
+  averagePower: number;
+  maxPower: number;
+  firstRecord: Date | null;
+  lastRecord: Date | null;
+}

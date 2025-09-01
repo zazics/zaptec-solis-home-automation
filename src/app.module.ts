@@ -4,7 +4,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SolisModule } from './solis/solis.module';
 import { ZaptecModule } from './zaptec/zaptec.module';
 import { HomeAutomationModule } from './home-automation/home-automation.module';
 import { WeatherModule } from './weather/weather.module';
@@ -23,7 +22,6 @@ import { LoggingService } from './common/logging.service';
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
-    SolisModule,
     ZaptecModule,
     HomeAutomationModule,
     WeatherModule,

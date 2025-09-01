@@ -1,8 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { ZaptecService } from './zaptec/zaptec.service';
 import { LoggingService } from './common/logging.service';
-import { SolisService } from './solis/solis.service';
-import { SolisDataService } from './solis/solis-data.service';
 import { HomeAutomationService } from './home-automation/home-automation.service';
 
 @Injectable()
@@ -13,9 +10,6 @@ export class AppService implements OnModuleInit {
    * Constructor
    */
   constructor(
-    private readonly zaptecService: ZaptecService,
-    private readonly solisService: SolisService,
-    private readonly solisDataService: SolisDataService,
     private readonly homeAutomationService: HomeAutomationService,
     private readonly logger: LoggingService
   ) {}

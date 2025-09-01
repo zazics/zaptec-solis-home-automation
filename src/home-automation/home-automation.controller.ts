@@ -1,12 +1,17 @@
-import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject, Query } from '@nestjs/common';
 import { HomeAutomationService } from './home-automation.service';
 import {
   AutomationActionResponse,
   AutomationConfig,
-  AutomationStatus,
   ConfigUpdateResponse,
-  DashboardResponse
+  SolisDailyStats,
+  ZaptecDailyStats
 } from './models/home-automation.model';
+import { SolisDataService } from '../solis/solis-data.service';
+import { ZaptecDataService } from '../zaptec/zaptec-data.service';
+import { SolisData } from '../solis/schemas/solis-data.schema';
+import { ZaptecData } from '../zaptec/schemas/zaptec-data.schema';
+import { SolisDataDTO, ZaptecDataDTO } from '../common/dto/data.dto';
 
 /**
  * Controller for managing home automation system
@@ -18,20 +23,55 @@ export class HomeAutomationController {
   @Inject(HomeAutomationService)
   private readonly homeAutomationService: HomeAutomationService;
 
+  @Inject(SolisDataService)
+  private readonly solisDataService: SolisDataService;
+
+  @Inject(ZaptecDataService)
+  private readonly zaptecDataService: ZaptecDataService;
+
   constructor() {}
 
   /**
-   * Retrieves the current status of the automation system
-   * @returns {Promise<AutomationStatus>} Current automation status including solar production, consumption, and charging state
+   * Converts SolisData (database entity) to SolisDataDTO (DTO)
+   * @param {SolisData} solisData - Database entity
+   * @returns {SolisDataDTO} DTO for API response
    */
-  @Get('status')
-  public async getStatus(): Promise<AutomationStatus> {
-    try {
-      return await this.homeAutomationService.getAutomationStatus();
-    } catch (error) {
-      throw new HttpException('Failed to get automation status', HttpStatus.SERVICE_UNAVAILABLE);
-    }
+  private convertToSolisDataDTO(solisData: SolisData): SolisDataDTO {
+    return {
+      timestamp: solisData.timestamp,
+      status: {
+        code: solisData.statusCode,
+        text: solisData.statusText
+      },
+      pv: solisData.pv,
+      ac: solisData.ac,
+      house: solisData.house,
+      grid: solisData.grid,
+      battery: solisData.battery
+    };
   }
+
+  /**
+   * Converts ZaptecData (database entity) to ZaptecDataDTO (DTO)
+   * @param {ZaptecData} zaptecData - Database entity
+   * @returns {ZaptecDataDTO} DTO for API response
+   */
+  private convertToZaptecDataDTO(zaptecData: ZaptecData): ZaptecDataDTO {
+    return {
+      id: zaptecData.id,
+      name: zaptecData.name,
+      online: zaptecData.online,
+      charging: zaptecData.charging,
+      power: zaptecData.power,
+      totalPower: zaptecData.totalPower,
+      ChargeCurrentSet: zaptecData.ChargeCurrentSet,
+      vehicleConnected: zaptecData.vehicleConnected,
+      operatingMode: zaptecData.operatingMode,
+      deviceType: zaptecData.deviceType,
+      serialNo: zaptecData.serialNo
+    };
+  }
+
 
   /**
    * Retrieves the current automation configuration
@@ -115,32 +155,142 @@ export class HomeAutomationController {
   }
 
 
-  /**
-   * Retrieves comprehensive dashboard data including status, config, and summary metrics
-   * @returns {Promise<DashboardResponse>} Complete dashboard data with efficiency metrics and system overview
-   */
-  @Get('dashboard')
-  public async getDashboard(): Promise<DashboardResponse> {
-    try {
-      const status = await this.homeAutomationService.getAutomationStatus();
-      const config = this.homeAutomationService.getConfig();
 
-      return {
-        status,
-        config,
-        summary: {
-          systemStatus: status.enabled ? 'active' : 'inactive',
-          currentMode: config.mode,
-          solarEfficiency:
-            status.solarProduction > 0 ? Math.round((status.availableForCharging / status.solarProduction) * 100) : 0,
-          chargingEfficiency: status.chargingStatus.active
-            ? Math.round((status.chargingStatus.power / status.availableForCharging) * 100)
-            : 0
-        },
-        timestamp: new Date().toISOString()
-      };
+  /**
+   * Retrieves recent solar inverter data from database
+   * @param {string} limit - Number of records to retrieve (default: 100, max: 1000)
+   * @returns {Promise<SolisDataDTO[]>} Array of historical solar data points
+   */
+  @Get('solis/history')
+  public async getSolisHistory(@Query('limit') limit: string = '100'): Promise<SolisDataDTO[]> {
+    try {
+      const numLimit = parseInt(limit, 10);
+      if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
+        throw new HttpException('Invalid limit parameter. Must be between 1 and 1000.', HttpStatus.BAD_REQUEST);
+      }
+
+      const dbData = await this.solisDataService.getRecentData(numLimit);
+      return dbData.map(data => this.convertToSolisDataDTO(data));
     } catch (error) {
-      throw new HttpException('Failed to get dashboard data', HttpStatus.SERVICE_UNAVAILABLE);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get solar history data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves complete solar inverter data from database (latest entry)
+   * @returns {Promise<SolisDataDTO>} Latest complete solar data including PV, AC, house, grid, and battery
+   */
+  @Get('solis/latest')
+  public async getLatestSolisData(): Promise<SolisDataDTO> {
+    try {
+      const latestData = await this.solisDataService.getRecentData(1);
+      if (latestData.length === 0) {
+        throw new HttpException('No solar data available', HttpStatus.NOT_FOUND);
+      }
+      return this.convertToSolisDataDTO(latestData[0]);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get latest solar data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves daily solar statistics for a specific date
+   * @param {string} date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns {Promise<SolisDailyStats>} Daily energy statistics
+   */
+  @Get('solis/stats/daily')
+  public async getSolisDailyStats(@Query('date') date?: string): Promise<SolisDailyStats> {
+    try {
+      let targetDate = new Date();
+
+      if (date) {
+        targetDate = new Date(date);
+        if (isNaN(targetDate.getTime())) {
+          throw new HttpException('Invalid date format. Use YYYY-MM-DD.', HttpStatus.BAD_REQUEST);
+        }
+      }
+
+      return await this.solisDataService.getDailyStats(targetDate);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get daily solar statistics', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves latest Zaptec charger status from database
+   * @returns {Promise<ZaptecDataDTO>} Current charger status including power, current, and connection state
+   */
+  @Get('zaptec/status')
+  public async getZaptecStatus(): Promise<ZaptecDataDTO> {
+    try {
+      const latestData = await this.zaptecDataService.getLatestData();
+      if (!latestData) {
+        throw new HttpException('No charger data available', HttpStatus.NOT_FOUND);
+      }
+      return this.convertToZaptecDataDTO(latestData);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get charger status', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves recent Zaptec charger data from database
+   * @param {string} limit - Number of records to retrieve (default: 100, max: 1000)
+   * @returns {Promise<ZaptecDataDTO[]>} Array of historical charger data points
+   */
+  @Get('zaptec/history')
+  public async getZaptecHistory(@Query('limit') limit: string = '100'): Promise<ZaptecDataDTO[]> {
+    try {
+      const numLimit = parseInt(limit, 10);
+      if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
+        throw new HttpException('Invalid limit parameter. Must be between 1 and 1000.', HttpStatus.BAD_REQUEST);
+      }
+
+      const dbData = await this.zaptecDataService.getRecentData(numLimit);
+      return dbData.map(data => this.convertToZaptecDataDTO(data));
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get charger history data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves daily Zaptec charging statistics for a specific date
+   * @param {string} date - Date in YYYY-MM-DD format (defaults to today)
+   * @returns {Promise<ZaptecDailyStats>} Daily charging statistics
+   */
+  @Get('zaptec/stats/daily')
+  public async getZaptecDailyStats(@Query('date') date?: string): Promise<ZaptecDailyStats> {
+    try {
+      let targetDate = new Date();
+
+      if (date) {
+        targetDate = new Date(date);
+        if (isNaN(targetDate.getTime())) {
+          throw new HttpException('Invalid date format. Use YYYY-MM-DD.', HttpStatus.BAD_REQUEST);
+        }
+      }
+
+      return await this.zaptecDataService.getDailyStats(targetDate);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get daily charging statistics', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }
