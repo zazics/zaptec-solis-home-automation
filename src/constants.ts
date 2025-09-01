@@ -109,10 +109,6 @@ export class Constants {
       return _.toNumber(process.env.PRIORITY_LOAD_RESERVE);
     },
 
-    get MONGODB_SAVE_FREQUENCY(): number {
-      return _.toNumber(process.env.MONGODB_SAVE_FREQUENCY) || 3;
-    },
-
     get HIGH_CONSUMPTION_REDUCTION_PERCENT(): number {
       return _.toNumber(process.env.HIGH_CONSUMPTION_REDUCTION_PERCENT) || 2;
     }

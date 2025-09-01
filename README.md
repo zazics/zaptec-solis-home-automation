@@ -66,7 +66,6 @@ Configure the following variables in your `.env` file:
 - `AUTOMATION_MODE=surplus` - Control mode: surplus/manual (default: surplus)
 - `MAX_CHARGING_POWER=7360` - Maximum charging power in W (default: 7360)
 - `PRIORITY_LOAD_RESERVE=500` - Power reserve for priority loads in W (default: 500)
-- `MONGODB_SAVE_FREQUENCY=3` - Save data to MongoDB every N cycles (default: 3)
 
 #### Database Settings
 
@@ -283,7 +282,6 @@ npm run format
 - Verify MongoDB is running and accessible
 - Check MongoDB URI configuration
 - Ensure database permissions are correct
-- Adjust save frequency if needed: `MONGODB_SAVE_FREQUENCY`
 
 ## Architecture
 
