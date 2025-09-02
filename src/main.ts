@@ -11,6 +11,18 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
+  // Enable CORS for web client access
+  app.enableCors({
+    origin: [
+      'http://localhost:8081', // Expo web dev server
+      'http://localhost:3000', // Alternative dev port
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network IPs
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+    credentials: true,
+  });
+
   // Debug environment variable
   logger.debug(`Environment PORT variable: ${process.env.PORT}`);
   logger.debug(`Constants.SERVER.PORT: ${Constants.SERVER.PORT}`);

@@ -25,6 +25,11 @@ export class ApiKeyMiddleware implements NestMiddleware {
       return next();
     }
 
+    // Allow CORS preflight requests (OPTIONS method) to pass through
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
     // If no API key provided or invalid API key - close connection silently
     if (!apiKey || apiKey !== expectedApiKey) {
       res.destroy();
