@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import 'dotenv/config';
 
 /**
  * All Application Constants for Zaptec-Solis Home Automation
