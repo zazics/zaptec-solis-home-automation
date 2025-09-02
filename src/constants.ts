@@ -152,6 +152,15 @@ export class Constants {
     }
   };
 
+  /**
+   * API Security Configuration
+   */
+  public static API = {
+    get KEY(): string {
+      return process.env.API_KEY || '';
+    }
+  };
+
 
   /**
    * Solar Panel Configuration
