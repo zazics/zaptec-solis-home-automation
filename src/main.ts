@@ -1,11 +1,11 @@
+// Load environment variables before anything else
 import * as dotenv from 'dotenv';
+dotenv.config();
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { Constants } from './constants';
-
-// Load environment variables before anything else
-dotenv.config();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
