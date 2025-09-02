@@ -286,6 +286,49 @@ export class ZaptecService implements OnModuleInit {
   }
 
   /**
+   * Simple charging control at 6A for minimum modes
+   * Checks if charger should be charging at 6A based on current status
+   */
+  public async manageMinimumCharging(sufficientPower: boolean): Promise<void> {
+    const MINIMUM_CURRENT = 6; // 6A minimum charging current
+    
+    // Use cached status to avoid redundant API calls
+    const currentStatus = this.cachedStatus;
+    if (!currentStatus) {
+      this.logger.warn('No cached status available, cannot manage minimum charging', this.context);
+      return;
+    }
+
+    if (sufficientPower) {
+      // Sufficient power available - ensure charging at 6A
+      const needsCurrentUpdate = currentStatus.ChargeCurrentSet !== MINIMUM_CURRENT;
+      const needsChargingEnable = !currentStatus.charging;
+
+      if (needsCurrentUpdate) {
+        await this.setMaxCurrent(MINIMUM_CURRENT);
+        this.logger.log(`Set charging current to ${MINIMUM_CURRENT}A for minimum charging`, this.context);
+      }
+
+      if (needsChargingEnable) {
+        await this.setChargingEnabled(true);
+        this.logger.log(`Enabled charging at ${MINIMUM_CURRENT}A`, this.context);
+      }
+
+      if (!needsCurrentUpdate && !needsChargingEnable) {
+        this.logger.debug(`Already charging at ${MINIMUM_CURRENT}A`, this.context);
+      }
+    } else {
+      // Insufficient power - stop charging if active
+      if (currentStatus.charging) {
+        await this.setChargingEnabled(false);
+        this.logger.log('Stopped charging due to insufficient power for minimum mode', this.context);
+      } else {
+        this.logger.debug('Charging already stopped due to insufficient power', this.context);
+      }
+    }
+  }
+
+  /**
    * Configures optimal charging parameters based on available power and battery level
    */
   public async optimizeCharging(availablePower: number, batterySoc?: number): Promise<void> {

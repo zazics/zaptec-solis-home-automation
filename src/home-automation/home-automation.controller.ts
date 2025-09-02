@@ -99,8 +99,8 @@ export class HomeAutomationController {
         throw new HttpException('maxChargingPower must be positive', HttpStatus.BAD_REQUEST);
       }
 
-      if (config.mode !== undefined && !['surplus', 'manual'].includes(config.mode)) {
-        throw new HttpException('mode must be one of: surplus, manual', HttpStatus.BAD_REQUEST);
+      if (config.mode !== undefined && !['surplus', 'manual', 'minimum', 'force_minimum'].includes(config.mode)) {
+        throw new HttpException('mode must be one of: surplus, manual, minimum, force_minimum', HttpStatus.BAD_REQUEST);
       }
 
       const updatedConfig = await this.homeAutomationService.updateConfig(config);

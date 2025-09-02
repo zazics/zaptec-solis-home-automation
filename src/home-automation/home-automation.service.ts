@@ -22,6 +22,8 @@ import { TapoService } from '../tapo/tapo.service';
  * Automation Modes:
  * - **Surplus Mode**: Charges only when solar production exceeds house consumption
  * - **Manual Mode**: Direct control without automation
+ * - **Minimum Mode**: Charges at 6A when there's sufficient solar power
+ * - **Force Minimum Mode**: Always charges at 6A regardless of solar power
  *
  * Features:
  * - Real-time power flow monitoring and calculation
@@ -219,6 +221,14 @@ export class HomeAutomationService implements OnModuleInit {
         await this.executeSurplusMode(availablePower, solisData, zaptecStatus);
         break;
 
+      case 'minimum':
+        await this.executeMinimumMode(availablePower, solisData, zaptecStatus);
+        break;
+
+      case 'force_minimum':
+        await this.executeForceMinimumMode(availablePower, solisData, zaptecStatus);
+        break;
+
       case 'manual':
         // Manual mode - no automation
         this.logger.debug('Manual mode - no automatic control', this.context);
@@ -243,6 +253,53 @@ export class HomeAutomationService implements OnModuleInit {
       // Vehicle disconnected but charging active
       await this.zaptecService.setChargingEnabled(false);
       this.logger.log('Surplus mode: Stopping charging - vehicle disconnected', this.context);
+    }
+  }
+
+  /**
+   * Minimum mode: charge at 6A when sufficient solar power is available
+   * Minimum power required: 6A * 230V * 1 phase = 1380W
+   */
+  private async executeMinimumMode(
+    availablePower: number,
+    solisData: SolisInverterData,
+    zaptecStatus: ZaptecStatus
+  ): Promise<void> {
+    const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
+    
+    if (zaptecStatus.vehicleConnected) {
+      const sufficientPower = availablePower >= MINIMUM_CHARGING_POWER;
+      this.logger.log(`Minimum mode: ${availablePower}W available (need ${MINIMUM_CHARGING_POWER}W), sufficient: ${sufficientPower}`, this.context);
+      
+      // Use simple charging management at 6A
+      await this.zaptecService.manageMinimumCharging(sufficientPower);
+    } else if (zaptecStatus.charging) {
+      // Vehicle disconnected but charging active
+      await this.zaptecService.setChargingEnabled(false);
+      this.logger.log('Minimum mode: Stopping charging - vehicle disconnected', this.context);
+    }
+  }
+
+  /**
+   * Force minimum mode: always charge at 6A regardless of solar power availability
+   */
+  private async executeForceMinimumMode(
+    availablePower: number,
+    solisData: SolisInverterData,
+    zaptecStatus: ZaptecStatus
+  ): Promise<void> {
+    const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
+    
+    if (zaptecStatus.vehicleConnected) {
+      // Always charge at 6A when vehicle connected, regardless of solar production
+      this.logger.log(`Force minimum mode: Charging at 6A (${MINIMUM_CHARGING_POWER}W) regardless of solar power (${availablePower}W available)`, this.context);
+      
+      // Always sufficient power in force mode
+      await this.zaptecService.manageMinimumCharging(true);
+    } else if (zaptecStatus.charging) {
+      // Vehicle disconnected but charging active
+      await this.zaptecService.setChargingEnabled(false);
+      this.logger.log('Force minimum mode: Stopping charging - vehicle disconnected', this.context);
     }
   }
 

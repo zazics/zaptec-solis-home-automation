@@ -95,8 +95,8 @@ export class Constants {
       return process.env.AUTOMATION_ENABLED === 'true';
     },
 
-    get MODE(): 'surplus' | 'manual' {
-      return (process.env.AUTOMATION_MODE as 'surplus' | 'manual') || 'surplus';
+    get MODE(): 'surplus' | 'manual' | 'minimum' | 'force_minimum' {
+      return (process.env.AUTOMATION_MODE as 'surplus' | 'manual' | 'minimum' | 'force_minimum') || 'surplus';
     },
 
 
