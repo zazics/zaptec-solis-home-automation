@@ -1,6 +1,7 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Injectable, NestMiddleware, Inject } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { Constants } from '../../constants';
+import { LoggingService } from '../logging.service';
 
 /**
  * Middleware for API key validation
@@ -10,6 +11,10 @@ import { Constants } from '../../constants';
  */
 @Injectable()
 export class ApiKeyMiddleware implements NestMiddleware {
+  private readonly context = ApiKeyMiddleware.name;
+
+  @Inject(LoggingService)
+  private readonly logger: LoggingService;
   /**
    * Validates API key from request headers
    * @param req - Express request object
@@ -22,6 +27,10 @@ export class ApiKeyMiddleware implements NestMiddleware {
 
     // Skip validation if no API key is configured (development mode)
     if (!expectedApiKey) {
+      this.logger.warn(
+        `No API key configured accept request - ${req.method} ${req.originalUrl} from ${req.ip}`,
+        this.context
+      );
       return next();
     }
 
@@ -30,8 +39,21 @@ export class ApiKeyMiddleware implements NestMiddleware {
       return next();
     }
 
-    // If no API key provided or invalid API key - close connection silently
-    if (!apiKey || apiKey !== expectedApiKey) {
+    // If no API key provided or invalid API key - log and close connection silently
+    if (!apiKey) {
+      this.logger.warn(
+        `API request rejected: No API key provided - ${req.method} ${req.originalUrl} from ${req.ip}`,
+        this.context
+      );
+      res.destroy();
+      return;
+    }
+
+    if (apiKey !== expectedApiKey) {
+      this.logger.warn(
+        `API request rejected: Invalid API key '${apiKey}' - ${req.method} ${req.originalUrl} from ${req.ip}`,
+        this.context
+      );
       res.destroy();
       return;
     }

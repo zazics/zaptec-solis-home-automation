@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
       /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Local network IPs
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
     credentials: true,
   });
 
