@@ -82,8 +82,8 @@ export interface ChartPeriodOption {
 }
 
 export const CHART_PERIODS: ChartPeriodOption[] = [
-  { key: 'day', label: 'Jour (par 15min)', groupBy: 'quarterly', daysBack: 1 },
-  { key: 'week', label: 'Semaine (par heure)', groupBy: 'hourly', daysBack: 7 },
-  { key: 'month', label: 'Mois (par jour)', groupBy: 'daily', daysBack: 30 },
-  { key: 'year', label: 'Année (par mois)', groupBy: 'monthly', daysBack: 365 }
+  { key: 'day', label: 'Jour (/15min)', groupBy: 'quarterly', daysBack: 1 },
+  { key: 'week', label: 'Semaine (/h)', groupBy: 'hourly', daysBack: 7 },
+  { key: 'month', label: 'Mois (/jour)', groupBy: 'daily', daysBack: 30 },
+  { key: 'year', label: 'Année (/mois)', groupBy: 'monthly', daysBack: 365 }
 ];

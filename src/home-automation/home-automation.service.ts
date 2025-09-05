@@ -20,6 +20,7 @@ import {
 import { Constants } from '../constants';
 import * as SunCalc from 'suncalc';
 import { TapoService } from '../tapo/tapo.service';
+import { DailyAggregationService } from '../common/services/daily-aggregation.service';
 
 /**
  * Core automation service that coordinates solar energy production with EV charging
@@ -55,6 +56,7 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(ZaptecService) private readonly zaptecService: ZaptecService;
   @Inject(ZaptecDataService) private readonly zaptecDataService: ZaptecDataService;
   @Inject(TapoService) private readonly tapoService: TapoService;
+  @Inject(DailyAggregationService) private readonly dailyAggregationService: DailyAggregationService;
 
   @Inject(LoggingService) private readonly logger: LoggingService;
 
@@ -415,18 +417,18 @@ export class HomeAutomationService implements OnModuleInit {
     for (let i = 0; i < sortedData.length - 1; i++) {
       const currentPoint = sortedData[i];
       const nextPoint = sortedData[i + 1];
-      
+
       const currentPowerWatts = valueExtractor(currentPoint); // Power in Watts
       const currentTime = new Date(currentPoint.timestamp).getTime();
       const nextTime = new Date(nextPoint.timestamp).getTime();
-      
+
       // Calculate time difference in hours
       const timeDifferenceHours = (nextTime - currentTime) / (1000 * 60 * 60);
-      
+
       // Convert Watts to kW and calculate energy
       const nextPowerWatts = valueExtractor(nextPoint);
       const averagePowerKW = (currentPowerWatts + nextPowerWatts) / 2 / 1000; // Convert W to kW
-      
+
       // Energy = Power × Time (kWh = kW × hours)
       totalEnergy += averagePowerKW * timeDifferenceHours;
     }
@@ -579,6 +581,40 @@ export class HomeAutomationService implements OnModuleInit {
   }
 
   /**
+   * Converts daily aggregations to chart data format
+   * @param {any[]} aggregations - Array of daily aggregations
+   * @param {Function} valueExtractor - Function to extract value from aggregation
+   * @returns {ChartDataPoint[]} Chart data points
+   */
+  private convertAggregationsToChartData(aggregations: any[], valueExtractor: (agg: any) => number): ChartDataPoint[] {
+    return aggregations.map(agg => ({
+      timestamp: new Date(agg.date),
+      value: valueExtractor(agg)
+    })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }
+
+  /**
+   * Determines whether to use pre-aggregated data or real-time calculation
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {boolean} True if should use pre-aggregated data
+   */
+  private shouldUsePreAggregatedData(period: 'day' | 'week' | 'month' | 'year', date?: string): boolean {
+    if (period === 'day') {
+      // For day period, only use pre-aggregated data if it's not today
+      const targetDate = date ? new Date(date) : new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      targetDate.setHours(0, 0, 0, 0);
+      
+      return targetDate.getTime() < today.getTime();
+    }
+    
+    // For week, month, year periods, always use pre-aggregated data
+    return true;
+  }
+
+  /**
    * Retrieves solar production chart data for specified period
    * @param {string} period - Chart period
    * @param {string} date - Optional specific date
@@ -589,11 +625,31 @@ export class HomeAutomationService implements OnModuleInit {
     date?: string
   ): Promise<SolarProductionChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
-
+    
+    // Use pre-aggregated data for historical periods or current day aggregation
+    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+      
+      const chartData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.solarProduction?.maxPowerW || 0  // Use max power for chart display
+      );
+      
+      // Calculate total energy from aggregations
+      const totalEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
+      
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        data: chartData,
+        totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
+      };
+    }
+    
+    // Fallback to real-time calculation for current day or when aggregations are not available
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
-
-    // Calculate total energy in kWh from power data in Watts
     const totalEnergyKwh = this.calculateTotalEnergy(rawData, (item) => item.pv?.totalPowerDC || 0);
 
     return {
@@ -601,7 +657,7 @@ export class HomeAutomationService implements OnModuleInit {
       startDate,
       endDate,
       data: chartData,
-      totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3)) // Round to 3 decimal places
+      totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
     };
   }
 
@@ -617,6 +673,30 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<GridExchangeChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
+    // Use pre-aggregated data for historical periods
+    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+      
+      const importedData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.gridExchange?.maxImportW || 0
+      );
+      
+      const exportedData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.gridExchange?.maxExportW || 0
+      );
+      
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        imported: importedData,
+        exported: exportedData
+      };
+    }
+
+    // Fallback to real-time calculation for current day
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
 
     const importedData = this.aggregateData(rawData, groupBy, (item) =>
@@ -648,6 +728,24 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<HouseConsumptionChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
+    // Use pre-aggregated data for historical periods
+    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+      
+      const chartData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.houseConsumption?.maxPowerW || 0
+      );
+      
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        data: chartData
+      };
+    }
+
+    // Fallback to real-time calculation for current day
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.house?.consumption || 0);
 
@@ -671,6 +769,24 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<ZaptecConsumptionChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
+    // Use pre-aggregated data for historical periods
+    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+      
+      const chartData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.zaptecConsumption?.maxPowerW || 0
+      );
+      
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        data: chartData
+      };
+    }
+
+    // Fallback to real-time calculation for current day
     const rawData = await this.zaptecDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
 
@@ -694,6 +810,52 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<DashboardChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
+    // Use pre-aggregated data for historical periods
+    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+      
+      const solarProduction = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.solarProduction?.maxPowerW || 0
+      );
+      
+      const houseConsumption = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.houseConsumption?.maxPowerW || 0
+      );
+      
+      const gridImported = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.gridExchange?.maxImportW || 0
+      );
+      
+      const gridExported = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.gridExchange?.maxExportW || 0
+      );
+      
+      const zaptecConsumption = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.zaptecConsumption?.maxPowerW || 0
+      );
+      
+      // Calculate total solar energy from aggregations
+      const totalSolarEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
+      
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        solarProduction,
+        houseConsumption,
+        zaptecConsumption,
+        gridImported,
+        gridExported,
+        totalSolarEnergyKwh: parseFloat(totalSolarEnergyKwh.toFixed(3))
+      };
+    }
+
+    // Fallback to real-time calculation for current day
     const [solisData, zaptecData] = await Promise.all([
       this.solisDataService.getDataInTimeRange(startDate, endDate),
       this.zaptecDataService.getDataInTimeRange(startDate, endDate)
