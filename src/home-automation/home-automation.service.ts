@@ -416,19 +416,19 @@ export class HomeAutomationService implements OnModuleInit {
       const currentPoint = sortedData[i];
       const nextPoint = sortedData[i + 1];
       
-      const currentPower = valueExtractor(currentPoint); // Power in kW
+      const currentPowerWatts = valueExtractor(currentPoint); // Power in Watts
       const currentTime = new Date(currentPoint.timestamp).getTime();
       const nextTime = new Date(nextPoint.timestamp).getTime();
       
       // Calculate time difference in hours
       const timeDifferenceHours = (nextTime - currentTime) / (1000 * 60 * 60);
       
-      // Energy = Power × Time (kWh = kW × hours)
-      // Use average power between two points for more accuracy
-      const nextPower = valueExtractor(nextPoint);
-      const averagePower = (currentPower + nextPower) / 2;
+      // Convert Watts to kW and calculate energy
+      const nextPowerWatts = valueExtractor(nextPoint);
+      const averagePowerKW = (currentPowerWatts + nextPowerWatts) / 2 / 1000; // Convert W to kW
       
-      totalEnergy += averagePower * timeDifferenceHours;
+      // Energy = Power × Time (kWh = kW × hours)
+      totalEnergy += averagePowerKW * timeDifferenceHours;
     }
 
     return totalEnergy;
@@ -593,8 +593,7 @@ export class HomeAutomationService implements OnModuleInit {
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
 
-    // Calculate total energy in kWh
-    // Since data is collected every minute, each data point represents 1/60 hours
+    // Calculate total energy in kWh from power data in Watts
     const totalEnergyKwh = this.calculateTotalEnergy(rawData, (item) => item.pv?.totalPowerDC || 0);
 
     return {
@@ -710,7 +709,7 @@ export class HomeAutomationService implements OnModuleInit {
     );
     const zaptecConsumption = this.aggregateData(zaptecData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
 
-    // Calculate total solar energy in kWh
+    // Calculate total solar energy in kWh from power data in Watts
     const totalSolarEnergyKwh = this.calculateTotalEnergy(solisData, (item) => item.pv?.totalPowerDC || 0);
 
     return {
