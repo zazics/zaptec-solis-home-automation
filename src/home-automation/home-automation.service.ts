@@ -405,12 +405,7 @@ export class HomeAutomationService implements OnModuleInit {
   private getTimeRange(
     period: 'day' | 'week' | 'month' | 'year',
     date?: string
-  ): { startDate: Date; endDate: Date; groupBy: 'hourly' | 'daily' | 'monthly' | 'yearly' } {
-    const periodConfig = CHART_PERIODS.find((p) => p.key === period);
-    if (!periodConfig) {
-      throw new Error(`Invalid period: ${period}`);
-    }
-
+  ): { startDate: Date; endDate: Date; groupBy: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly' } {
     const referenceDate = date ? new Date(date) : new Date();
     if (isNaN(referenceDate.getTime())) {
       throw new Error('Invalid date format');
@@ -418,6 +413,7 @@ export class HomeAutomationService implements OnModuleInit {
 
     let startDate: Date;
     let endDate: Date;
+    let groupBy: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
 
     switch (period) {
       case 'day':
@@ -425,6 +421,7 @@ export class HomeAutomationService implements OnModuleInit {
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(startDate);
         endDate.setHours(23, 59, 59, 999);
+        groupBy = 'quarterly'; // Use 15-minute intervals for day view
         break;
 
       case 'week':
@@ -437,6 +434,7 @@ export class HomeAutomationService implements OnModuleInit {
           endDate = new Date(startDate);
           endDate.setDate(startDate.getDate() + 6);
           endDate.setHours(23, 59, 59, 999);
+          groupBy = 'hourly'; // Use hourly intervals for week view
         }
         break;
 
@@ -444,26 +442,28 @@ export class HomeAutomationService implements OnModuleInit {
         startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
         endDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
         endDate.setHours(23, 59, 59, 999);
+        groupBy = 'daily'; // Use daily intervals for month view
         break;
 
       case 'year':
         startDate = new Date(referenceDate.getFullYear(), 0, 1);
         endDate = new Date(referenceDate.getFullYear(), 11, 31);
         endDate.setHours(23, 59, 59, 999);
+        groupBy = 'monthly'; // Use monthly intervals for year view
         break;
     }
 
     return {
       startDate,
       endDate,
-      groupBy: periodConfig.groupBy
+      groupBy
     };
   }
 
   /**
    * Aggregates data points by time period
    * @param {Array} data - Raw data array
-   * @param {string} groupBy - Grouping period (hourly, daily, monthly)
+   * @param {string} groupBy - Grouping period (quarterly, hourly, daily, monthly)
    * @param {Function} valueExtractor - Function to extract value from data point
    * @returns {Array} Aggregated chart data points
    */
@@ -475,6 +475,12 @@ export class HomeAutomationService implements OnModuleInit {
       let groupKey: string;
 
       switch (groupBy) {
+        case 'quarterly': {
+          // Group by 15-minute intervals
+          const quarter = Math.floor(timestamp.getMinutes() / 15) * 15;
+          groupKey = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDate()}-${timestamp.getHours()}-${quarter}`;
+          break;
+        }
         case 'hourly':
           groupKey = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDate()}-${timestamp.getHours()}`;
           break;
@@ -496,6 +502,17 @@ export class HomeAutomationService implements OnModuleInit {
       } else {
         let groupTimestamp: Date;
         switch (groupBy) {
+          case 'quarterly': {
+            const quarter = Math.floor(timestamp.getMinutes() / 15) * 15;
+            groupTimestamp = new Date(
+              timestamp.getFullYear(),
+              timestamp.getMonth(),
+              timestamp.getDate(),
+              timestamp.getHours(),
+              quarter
+            );
+            break;
+          }
           case 'hourly':
             groupTimestamp = new Date(
               timestamp.getFullYear(),
@@ -539,7 +556,7 @@ export class HomeAutomationService implements OnModuleInit {
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
 
     return {
-      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
       data: chartData
@@ -569,7 +586,7 @@ export class HomeAutomationService implements OnModuleInit {
     );
 
     return {
-      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
       imported: importedData,
@@ -593,7 +610,7 @@ export class HomeAutomationService implements OnModuleInit {
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.house?.consumption || 0);
 
     return {
-      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
       data: chartData
@@ -616,7 +633,7 @@ export class HomeAutomationService implements OnModuleInit {
     const chartData = this.aggregateData(rawData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
 
     return {
-      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
       data: chartData
@@ -651,7 +668,7 @@ export class HomeAutomationService implements OnModuleInit {
     const zaptecConsumption = this.aggregateData(zaptecData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
 
     return {
-      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
       solarProduction,
@@ -659,6 +676,53 @@ export class HomeAutomationService implements OnModuleInit {
       zaptecConsumption,
       gridImported,
       gridExported
+    };
+  }
+
+  /**
+   * Debug method to check data availability for a specific period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {object} Data count information
+   */
+  public async debugDataCount(period: 'day' | 'week' | 'month' | 'year', date?: string) {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const [solisData, zaptecData] = await Promise.all([
+      this.solisDataService.getDataInTimeRange(startDate, endDate),
+      this.zaptecDataService.getDataInTimeRange(startDate, endDate)
+    ]);
+
+    // Sample some raw data for debugging
+    const sampleSolisData = solisData.slice(0, 5).map((item) => ({
+      timestamp: item.timestamp,
+      pvPower: item.pv?.totalPowerDC || 0,
+      housePower: item.house?.consumption || 0
+    }));
+
+    return {
+      period,
+      groupBy,
+      timeRange: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        durationHours: Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
+      },
+      dataCount: {
+        solis: solisData.length,
+        zaptec: zaptecData.length,
+        expectedPointsPerHour: groupBy === 'quarterly' ? 4 : groupBy === 'hourly' ? 1 : 0.042, // approximation pour daily/monthly
+        expectedTotalPoints: groupBy === 'quarterly' ? 96 : groupBy === 'hourly' ? 24 : 7
+      },
+      sampleData: {
+        solis: sampleSolisData,
+        firstDataPoint: solisData.length > 0 ? solisData[0].timestamp : null,
+        lastDataPoint: solisData.length > 0 ? solisData[solisData.length - 1].timestamp : null
+      },
+      aggregatedSample: this.aggregateData(solisData.slice(0, 20), groupBy, (item) => item.pv?.totalPowerDC || 0).slice(
+        0,
+        5
+      )
     };
   }
 }

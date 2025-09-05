@@ -413,4 +413,25 @@ export class HomeAutomationController {
       throw new HttpException('Failed to get dashboard chart data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
+
+  /**
+   * Debug endpoint to check data count for a specific period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {object} Data count information
+   */
+  @Get('charts/debug/count')
+  public async getDataCount(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ) {
+    try {
+      return await this.homeAutomationService.debugDataCount(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get data count', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
 }

@@ -18,7 +18,7 @@ export interface MultiSeriesChartData {
  * DTO for solar production chart data by time period
  */
 export interface SolarProductionChartData {
-  period: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   startDate: Date;
   endDate: Date;
   data: ChartDataPoint[];
@@ -28,7 +28,7 @@ export interface SolarProductionChartData {
  * DTO for grid exchange chart data (import/export)
  */
 export interface GridExchangeChartData {
-  period: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   startDate: Date;
   endDate: Date;
   imported: ChartDataPoint[];
@@ -39,7 +39,7 @@ export interface GridExchangeChartData {
  * DTO for house consumption chart data
  */
 export interface HouseConsumptionChartData {
-  period: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   startDate: Date;
   endDate: Date;
   data: ChartDataPoint[];
@@ -49,7 +49,7 @@ export interface HouseConsumptionChartData {
  * DTO for Zaptec charger consumption chart data
  */
 export interface ZaptecConsumptionChartData {
-  period: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   startDate: Date;
   endDate: Date;
   data: ChartDataPoint[];
@@ -59,7 +59,7 @@ export interface ZaptecConsumptionChartData {
  * Combined dashboard chart data
  */
 export interface DashboardChartData {
-  period: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   startDate: Date;
   endDate: Date;
   solarProduction: ChartDataPoint[];
@@ -75,13 +75,13 @@ export interface DashboardChartData {
 export interface ChartPeriodOption {
   key: 'day' | 'week' | 'month' | 'year';
   label: string;
-  groupBy: 'hourly' | 'daily' | 'monthly' | 'yearly';
+  groupBy: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
   daysBack: number;
 }
 
 export const CHART_PERIODS: ChartPeriodOption[] = [
-  { key: 'day', label: 'Jour (par heure)', groupBy: 'hourly', daysBack: 1 },
-  { key: 'week', label: 'Semaine (par jour)', groupBy: 'daily', daysBack: 7 },
+  { key: 'day', label: 'Jour (par 15min)', groupBy: 'quarterly', daysBack: 1 },
+  { key: 'week', label: 'Semaine (par heure)', groupBy: 'hourly', daysBack: 7 },
   { key: 'month', label: 'Mois (par jour)', groupBy: 'daily', daysBack: 30 },
   { key: 'year', label: 'Année (par mois)', groupBy: 'monthly', daysBack: 365 }
 ];
