@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject, Query } from '@nestjs/common';
 import { HomeAutomationService } from './home-automation.service';
+import { DailyAggregationService } from '../common/services/daily-aggregation.service';
 import {
   AutomationActionResponse,
   AutomationConfig,
@@ -37,6 +38,9 @@ export class HomeAutomationController {
 
   @Inject(ZaptecDataService)
   private readonly zaptecDataService: ZaptecDataService;
+
+  @Inject(DailyAggregationService)
+  private readonly dailyAggregationService: DailyAggregationService;
 
   constructor() {}
 
@@ -414,5 +418,17 @@ export class HomeAutomationController {
     }
   }
 
-
+  /**
+   * Backfill daily aggregations for the last 30 days
+   * This endpoint should be called once after implementing the aggregation system
+   * @returns {Promise<object>} Backfill operation result with counts
+   */
+  @Get('aggregation/backfill')
+  public async backfillAggregations(): Promise<{ processed: number; skipped: number; errors: number }> {
+    try {
+      return await this.dailyAggregationService.backfillLastMonth();
+    } catch (error) {
+      throw new HttpException('Failed to backfill aggregations', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
 }
