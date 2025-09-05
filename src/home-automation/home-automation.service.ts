@@ -397,6 +397,44 @@ export class HomeAutomationService implements OnModuleInit {
   }
 
   /**
+   * Calculates total energy in kWh from power data collected every minute
+   * @param {any[]} rawData - Array of data points with power values
+   * @param {Function} valueExtractor - Function to extract power value from each data point
+   * @returns {number} Total energy in kWh
+   */
+  private calculateTotalEnergy(rawData: any[], valueExtractor: (item: any) => number): number {
+    if (!rawData || rawData.length === 0) {
+      return 0;
+    }
+
+    // Sort data by timestamp to ensure correct chronological order
+    const sortedData = rawData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    let totalEnergy = 0;
+
+    for (let i = 0; i < sortedData.length - 1; i++) {
+      const currentPoint = sortedData[i];
+      const nextPoint = sortedData[i + 1];
+      
+      const currentPower = valueExtractor(currentPoint); // Power in kW
+      const currentTime = new Date(currentPoint.timestamp).getTime();
+      const nextTime = new Date(nextPoint.timestamp).getTime();
+      
+      // Calculate time difference in hours
+      const timeDifferenceHours = (nextTime - currentTime) / (1000 * 60 * 60);
+      
+      // Energy = Power × Time (kWh = kW × hours)
+      // Use average power between two points for more accuracy
+      const nextPower = valueExtractor(nextPoint);
+      const averagePower = (currentPower + nextPower) / 2;
+      
+      totalEnergy += averagePower * timeDifferenceHours;
+    }
+
+    return totalEnergy;
+  }
+
+  /**
    * Gets time range for chart data based on period
    * @param {string} period - Chart period (day, week, month, year)
    * @param {string} date - Optional specific date
@@ -555,11 +593,16 @@ export class HomeAutomationService implements OnModuleInit {
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
 
+    // Calculate total energy in kWh
+    // Since data is collected every minute, each data point represents 1/60 hours
+    const totalEnergyKwh = this.calculateTotalEnergy(rawData, (item) => item.pv?.totalPowerDC || 0);
+
     return {
       period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
       endDate,
-      data: chartData
+      data: chartData,
+      totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3)) // Round to 3 decimal places
     };
   }
 
@@ -667,6 +710,9 @@ export class HomeAutomationService implements OnModuleInit {
     );
     const zaptecConsumption = this.aggregateData(zaptecData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
 
+    // Calculate total solar energy in kWh
+    const totalSolarEnergyKwh = this.calculateTotalEnergy(solisData, (item) => item.pv?.totalPowerDC || 0);
+
     return {
       period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
       startDate,
@@ -675,7 +721,8 @@ export class HomeAutomationService implements OnModuleInit {
       houseConsumption,
       zaptecConsumption,
       gridImported,
-      gridExported
+      gridExported,
+      totalSolarEnergyKwh: parseFloat(totalSolarEnergyKwh.toFixed(3)) // Round to 3 decimal places
     };
   }
 

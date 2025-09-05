@@ -22,6 +22,7 @@ export interface SolarProductionChartData {
   startDate: Date;
   endDate: Date;
   data: ChartDataPoint[];
+  totalEnergyKwh: number; // Total energy production in kWh for the period
 }
 
 /**
@@ -67,6 +68,7 @@ export interface DashboardChartData {
   zaptecConsumption: ChartDataPoint[];
   gridImported: ChartDataPoint[];
   gridExported: ChartDataPoint[];
+  totalSolarEnergyKwh: number; // Total solar energy production in kWh for the period
 }
 
 /**
