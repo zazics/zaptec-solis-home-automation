@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject, Query } from '@nestjs/common';
 import { HomeAutomationService } from './home-automation.service';
 import { DailyAggregationService } from '../common/services/daily-aggregation.service';
+import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
 import {
   AutomationActionResponse,
   AutomationConfig,
@@ -41,6 +42,9 @@ export class HomeAutomationController {
 
   @Inject(DailyAggregationService)
   private readonly dailyAggregationService: DailyAggregationService;
+
+  @Inject(HourlyAggregationService)
+  private readonly hourlyAggregationService: HourlyAggregationService;
 
   constructor() {}
 
@@ -429,6 +433,20 @@ export class HomeAutomationController {
       return await this.dailyAggregationService.backfillLastMonth();
     } catch (error) {
       throw new HttpException('Failed to backfill aggregations', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Backfill hourly aggregations for the last 30 days
+   * This endpoint should be called once after implementing the hourly aggregation system
+   * @returns {Promise<object>} Backfill operation result with counts
+   */
+  @Get('aggregation/hourly-backfill')
+  public async backfillHourlyAggregations(): Promise<{ processed: number; skipped: number; errors: number }> {
+    try {
+      return await this.hourlyAggregationService.backfillLastMonth();
+    } catch (error) {
+      throw new HttpException('Failed to backfill hourly aggregations', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

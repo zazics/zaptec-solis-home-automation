@@ -20,6 +20,7 @@ import { Constants } from '../constants';
 import * as SunCalc from 'suncalc';
 import { TapoService } from '../tapo/tapo.service';
 import { DailyAggregationService } from '../common/services/daily-aggregation.service';
+import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
 
 /**
  * Core automation service that coordinates solar energy production with EV charging
@@ -56,6 +57,7 @@ export class HomeAutomationService implements OnModuleInit {
   @Inject(ZaptecDataService) private readonly zaptecDataService: ZaptecDataService;
   @Inject(TapoService) private readonly tapoService: TapoService;
   @Inject(DailyAggregationService) private readonly dailyAggregationService: DailyAggregationService;
+  @Inject(HourlyAggregationService) private readonly hourlyAggregationService: HourlyAggregationService;
 
   @Inject(LoggingService) private readonly logger: LoggingService;
 
@@ -611,8 +613,30 @@ export class HomeAutomationService implements OnModuleInit {
       return targetDate.getTime() < today.getTime();
     }
 
-    // For week, month, year periods, always use pre-aggregated data
+    if (period === 'week') {
+      // For week period, use hourly pre-aggregated data (not daily)
+      return true;
+    }
+    
+    // For month, year periods, use daily pre-aggregated data
     return true;
+  }
+
+  /**
+   * Converts hourly aggregations to chart data format for week view
+   * @param {any[]} hourlyAggregations - Array of hourly aggregations
+   * @param {Function} valueExtractor - Function to extract value from aggregation
+   * @returns {ChartDataPoint[]} Chart data points
+   */
+  private convertHourlyAggregationsToChartData(hourlyAggregations: any[], valueExtractor: (agg: any) => number): ChartDataPoint[] {
+    return hourlyAggregations.map(agg => {
+      const timestamp = new Date(agg.date);
+      timestamp.setHours(agg.hour, 0, 0, 0);
+      return {
+        timestamp,
+        value: valueExtractor(agg)
+      };
+    }).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   /**
@@ -627,28 +651,47 @@ export class HomeAutomationService implements OnModuleInit {
   ): Promise<SolarProductionChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
-    // Use pre-aggregated data for historical periods or current day aggregation
-    if (
-      this.shouldUsePreAggregatedData(period, date) &&
-      (period === 'week' || period === 'month' || period === 'year')
-    ) {
-      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-
-      const chartData = this.convertAggregationsToChartData(
-        aggregations,
-        (agg) => agg.solarProduction?.maxPowerW || 0 // Use max power for chart display
-      );
-
-      // Calculate total energy from aggregations
-      const totalEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
-
-      return {
-        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
-        startDate,
-        endDate,
-        data: chartData,
-        totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
-      };
+    // Use pre-aggregated data for historical periods
+    if (this.shouldUsePreAggregatedData(period, date)) {
+      if (period === 'week') {
+        // Use hourly aggregations for week view to show hourly granularity
+        const hourlyAggregations = await this.hourlyAggregationService.getAggregatedData(startDate, endDate);
+        
+        const chartData = this.convertHourlyAggregationsToChartData(
+          hourlyAggregations,
+          (agg) => agg.solarProduction?.avgPowerW || 0  // Use average power for hourly display
+        );
+        
+        // Calculate total energy from hourly aggregations
+        const totalEnergyKwh = hourlyAggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
+        
+        return {
+          period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+          startDate,
+          endDate,
+          data: chartData,
+          totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
+        };
+      } else if (period === 'month' || period === 'year') {
+        // Use daily aggregations for month/year view
+        const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+        
+        const chartData = this.convertAggregationsToChartData(
+          aggregations,
+          (agg) => agg.solarProduction?.maxPowerW || 0  // Use max power for chart display
+        );
+        
+        // Calculate total energy from aggregations
+        const totalEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
+        
+        return {
+          period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+          startDate,
+          endDate,
+          data: chartData,
+          totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
+        };
+      }
     }
 
     // Fallback to real-time calculation for current day or when aggregations are not available

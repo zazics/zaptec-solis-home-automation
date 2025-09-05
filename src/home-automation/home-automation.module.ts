@@ -8,6 +8,8 @@ import { LoggingService } from '../common/logging.service';
 import { TapoModule } from '../tapo/tapo.module';
 import { DailyAggregationService } from '../common/services/daily-aggregation.service';
 import { DailyAggregation, DailyAggregationSchema } from '../common/schemas/daily-aggregation.schema';
+import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
+import { HourlyAggregation, HourlyAggregationSchema } from '../common/schemas/hourly-aggregation.schema';
 
 @Module({
   imports: [
@@ -15,11 +17,12 @@ import { DailyAggregation, DailyAggregationSchema } from '../common/schemas/dail
     ZaptecModule, 
     TapoModule,
     MongooseModule.forFeature([
-      { name: DailyAggregation.name, schema: DailyAggregationSchema }
+      { name: DailyAggregation.name, schema: DailyAggregationSchema },
+      { name: HourlyAggregation.name, schema: HourlyAggregationSchema }
     ])
   ],
-  providers: [HomeAutomationService, LoggingService, DailyAggregationService],
+  providers: [HomeAutomationService, LoggingService, DailyAggregationService, HourlyAggregationService],
   controllers: [HomeAutomationController],
-  exports: [HomeAutomationService, DailyAggregationService]
+  exports: [HomeAutomationService, DailyAggregationService, HourlyAggregationService]
 })
 export class HomeAutomationModule {}
