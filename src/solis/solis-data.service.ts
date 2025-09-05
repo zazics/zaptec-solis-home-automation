@@ -140,6 +140,16 @@ export class SolisDataService {
   }
 
   /**
+   * Alias for getDataByDateRange - retrieves Solis data within a time range
+   * @param {Date} startDate - Start date for data retrieval
+   * @param {Date} endDate - End date for data retrieval
+   * @returns {Promise<SolisDataDocument[]>} Array of data points in time range
+   */
+  public async getDataInTimeRange(startDate: Date, endDate: Date): Promise<SolisDataDocument[]> {
+    return this.getDataByDateRange(startDate, endDate);
+  }
+
+  /**
    * Cleans up old data beyond retention period
    * @param {number} retentionDays - Number of days to retain data (default: 90)
    * @returns {Promise<number>} Number of deleted records

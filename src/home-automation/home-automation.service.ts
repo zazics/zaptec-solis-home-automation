@@ -8,6 +8,15 @@ import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
 import { SolisInverterData } from '../solis/models/solis.model';
 import { AutomationConfig } from './models/home-automation.model';
+import {
+  SolarProductionChartData,
+  GridExchangeChartData,
+  HouseConsumptionChartData,
+  ZaptecConsumptionChartData,
+  DashboardChartData,
+  ChartDataPoint,
+  CHART_PERIODS
+} from '../common/dto/chart-data.dto';
 import { Constants } from '../constants';
 import * as SunCalc from 'suncalc';
 import { TapoService } from '../tapo/tapo.service';
@@ -266,11 +275,14 @@ export class HomeAutomationService implements OnModuleInit {
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
-    
+
     if (zaptecStatus.vehicleConnected) {
       const sufficientPower = availablePower >= MINIMUM_CHARGING_POWER;
-      this.logger.log(`Minimum mode: ${availablePower}W available (need ${MINIMUM_CHARGING_POWER}W), sufficient: ${sufficientPower}`, this.context);
-      
+      this.logger.log(
+        `Minimum mode: ${availablePower}W available (need ${MINIMUM_CHARGING_POWER}W), sufficient: ${sufficientPower}`,
+        this.context
+      );
+
       // Use simple charging management at 6A
       await this.zaptecService.manageMinimumCharging(sufficientPower);
     } else if (zaptecStatus.charging) {
@@ -289,11 +301,14 @@ export class HomeAutomationService implements OnModuleInit {
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
-    
+
     if (zaptecStatus.vehicleConnected) {
       // Always charge at 6A when vehicle connected, regardless of solar production
-      this.logger.log(`Force minimum mode: Charging at 6A (${MINIMUM_CHARGING_POWER}W) regardless of solar power (${availablePower}W available)`, this.context);
-      
+      this.logger.log(
+        `Force minimum mode: Charging at 6A (${MINIMUM_CHARGING_POWER}W) regardless of solar power (${availablePower}W available)`,
+        this.context
+      );
+
       // Always sufficient power in force mode
       await this.zaptecService.manageMinimumCharging(true);
     } else if (zaptecStatus.charging) {
@@ -302,7 +317,6 @@ export class HomeAutomationService implements OnModuleInit {
       this.logger.log('Force minimum mode: Stopping charging - vehicle disconnected', this.context);
     }
   }
-
 
   /**
    * Updates automation configuration
@@ -341,10 +355,7 @@ export class HomeAutomationService implements OnModuleInit {
   private async saveDataToMongoDB(solisData: SolisInverterData): Promise<void> {
     try {
       await this.solisDataService.saveData(solisData);
-      this.logger.debug(
-        `Solis data saved to MongoDB (run ${this.automationRunCounter})`,
-        this.context
-      );
+      this.logger.debug(`Solis data saved to MongoDB (run ${this.automationRunCounter})`, this.context);
     } catch (mongoError) {
       this.logger.warn(
         `Failed to save data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
@@ -360,10 +371,7 @@ export class HomeAutomationService implements OnModuleInit {
   private async saveZaptecDataToMongoDB(zaptecStatus: ZaptecStatus): Promise<void> {
     try {
       await this.zaptecDataService.saveData(zaptecStatus);
-      this.logger.debug(
-        `Zaptec data saved to MongoDB (run ${this.automationRunCounter})`,
-        this.context
-      );
+      this.logger.debug(`Zaptec data saved to MongoDB (run ${this.automationRunCounter})`, this.context);
     } catch (mongoError) {
       this.logger.warn(
         `Failed to save Zaptec data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
@@ -386,5 +394,271 @@ export class HomeAutomationService implements OnModuleInit {
   public async runManualAutomation(): Promise<void> {
     this.logger.log('Manual automation run requested', this.context);
     await this.runAutomation();
+  }
+
+  /**
+   * Gets time range for chart data based on period
+   * @param {string} period - Chart period (day, week, month, year)
+   * @param {string} date - Optional specific date
+   * @returns {object} Start and end dates with grouping period
+   */
+  private getTimeRange(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): { startDate: Date; endDate: Date; groupBy: 'hourly' | 'daily' | 'monthly' | 'yearly' } {
+    const periodConfig = CHART_PERIODS.find((p) => p.key === period);
+    if (!periodConfig) {
+      throw new Error(`Invalid period: ${period}`);
+    }
+
+    const referenceDate = date ? new Date(date) : new Date();
+    if (isNaN(referenceDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
+
+    let startDate: Date;
+    let endDate: Date;
+
+    switch (period) {
+      case 'day':
+        startDate = new Date(referenceDate);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case 'week':
+        {
+          const dayOfWeek = referenceDate.getDay();
+          const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          startDate = new Date(referenceDate);
+          startDate.setDate(referenceDate.getDate() - daysToMonday);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + 6);
+          endDate.setHours(23, 59, 59, 999);
+        }
+        break;
+
+      case 'month':
+        startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+        endDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case 'year':
+        startDate = new Date(referenceDate.getFullYear(), 0, 1);
+        endDate = new Date(referenceDate.getFullYear(), 11, 31);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    return {
+      startDate,
+      endDate,
+      groupBy: periodConfig.groupBy
+    };
+  }
+
+  /**
+   * Aggregates data points by time period
+   * @param {Array} data - Raw data array
+   * @param {string} groupBy - Grouping period (hourly, daily, monthly)
+   * @param {Function} valueExtractor - Function to extract value from data point
+   * @returns {Array} Aggregated chart data points
+   */
+  private aggregateData(data: any[], groupBy: string, valueExtractor: (item: any) => number): ChartDataPoint[] {
+    const groups = new Map<string, { sum: number; count: number; timestamp: Date }>();
+
+    data.forEach((item) => {
+      const timestamp = new Date(item.timestamp);
+      let groupKey: string;
+
+      switch (groupBy) {
+        case 'hourly':
+          groupKey = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDate()}-${timestamp.getHours()}`;
+          break;
+        case 'daily':
+          groupKey = `${timestamp.getFullYear()}-${timestamp.getMonth()}-${timestamp.getDate()}`;
+          break;
+        case 'monthly':
+          groupKey = `${timestamp.getFullYear()}-${timestamp.getMonth()}`;
+          break;
+        default:
+          throw new Error(`Invalid groupBy: ${groupBy}`);
+      }
+
+      const value = valueExtractor(item);
+      if (groups.has(groupKey)) {
+        const group = groups.get(groupKey)!;
+        group.sum += value;
+        group.count += 1;
+      } else {
+        let groupTimestamp: Date;
+        switch (groupBy) {
+          case 'hourly':
+            groupTimestamp = new Date(
+              timestamp.getFullYear(),
+              timestamp.getMonth(),
+              timestamp.getDate(),
+              timestamp.getHours()
+            );
+            break;
+          case 'daily':
+            groupTimestamp = new Date(timestamp.getFullYear(), timestamp.getMonth(), timestamp.getDate());
+            break;
+          case 'monthly':
+            groupTimestamp = new Date(timestamp.getFullYear(), timestamp.getMonth(), 1);
+            break;
+        }
+        groups.set(groupKey, { sum: value, count: 1, timestamp: groupTimestamp! });
+      }
+    });
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        timestamp: group.timestamp,
+        value: group.sum / group.count // Average value
+      }))
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }
+
+  /**
+   * Retrieves solar production chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<SolarProductionChartData>} Solar production chart data
+   */
+  public async getSolarProductionChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<SolarProductionChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
+    const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
+
+    return {
+      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      data: chartData
+    };
+  }
+
+  /**
+   * Retrieves grid exchange chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<GridExchangeChartData>} Grid exchange chart data
+   */
+  public async getGridExchangeChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<GridExchangeChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
+
+    const importedData = this.aggregateData(rawData, groupBy, (item) =>
+      item.grid?.activePower > 0 ? item.grid.activePower : 0
+    );
+
+    const exportedData = this.aggregateData(rawData, groupBy, (item) =>
+      item.grid?.activePower < 0 ? Math.abs(item.grid.activePower) : 0
+    );
+
+    return {
+      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      imported: importedData,
+      exported: exportedData
+    };
+  }
+
+  /**
+   * Retrieves house consumption chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<HouseConsumptionChartData>} House consumption chart data
+   */
+  public async getHouseConsumptionChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<HouseConsumptionChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
+    const chartData = this.aggregateData(rawData, groupBy, (item) => item.house?.consumption || 0);
+
+    return {
+      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      data: chartData
+    };
+  }
+
+  /**
+   * Retrieves Zaptec consumption chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<ZaptecConsumptionChartData>} Zaptec consumption chart data
+   */
+  public async getZaptecConsumptionChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<ZaptecConsumptionChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const rawData = await this.zaptecDataService.getDataInTimeRange(startDate, endDate);
+    const chartData = this.aggregateData(rawData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
+
+    return {
+      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      data: chartData
+    };
+  }
+
+  /**
+   * Retrieves combined dashboard chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<DashboardChartData>} Combined dashboard chart data
+   */
+  public async getDashboardChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<DashboardChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    const [solisData, zaptecData] = await Promise.all([
+      this.solisDataService.getDataInTimeRange(startDate, endDate),
+      this.zaptecDataService.getDataInTimeRange(startDate, endDate)
+    ]);
+
+    const solarProduction = this.aggregateData(solisData, groupBy, (item) => item.pv?.totalPowerDC || 0);
+    const houseConsumption = this.aggregateData(solisData, groupBy, (item) => item.house?.consumption || 0);
+    const gridImported = this.aggregateData(solisData, groupBy, (item) =>
+      item.grid?.activePower > 0 ? item.grid.activePower : 0
+    );
+    const gridExported = this.aggregateData(solisData, groupBy, (item) =>
+      item.grid?.activePower < 0 ? Math.abs(item.grid.activePower) : 0
+    );
+    const zaptecConsumption = this.aggregateData(zaptecData, groupBy, (item) => (item.charging ? item.power || 0 : 0));
+
+    return {
+      period: groupBy as 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      solarProduction,
+      houseConsumption,
+      zaptecConsumption,
+      gridImported,
+      gridExported
+    };
   }
 }

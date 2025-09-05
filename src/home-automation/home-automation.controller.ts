@@ -7,6 +7,15 @@ import {
   SolisDailyStats,
   ZaptecDailyStats
 } from './models/home-automation.model';
+import {
+  SolarProductionChartData,
+  GridExchangeChartData,
+  HouseConsumptionChartData,
+  ZaptecConsumptionChartData,
+  DashboardChartData,
+  CHART_PERIODS,
+  ChartPeriodOption
+} from '../common/dto/chart-data.dto';
 import { SolisDataService } from '../solis/solis-data.service';
 import { ZaptecDataService } from '../zaptec/zaptec-data.service';
 import { SolisData } from '../solis/schemas/solis-data.schema';
@@ -71,7 +80,6 @@ export class HomeAutomationController {
       serialNo: zaptecData.serialNo
     };
   }
-
 
   /**
    * Retrieves the current automation configuration
@@ -154,8 +162,6 @@ export class HomeAutomationController {
     }
   }
 
-
-
   /**
    * Retrieves recent solar inverter data from database
    * @param {string} limit - Number of records to retrieve (default: 100, max: 1000)
@@ -170,7 +176,7 @@ export class HomeAutomationController {
       }
 
       const dbData = await this.solisDataService.getRecentData(numLimit);
-      return dbData.map(data => this.convertToSolisDataDTO(data));
+      return dbData.map((data) => this.convertToSolisDataDTO(data));
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -259,7 +265,7 @@ export class HomeAutomationController {
       }
 
       const dbData = await this.zaptecDataService.getRecentData(numLimit);
-      return dbData.map(data => this.convertToZaptecDataDTO(data));
+      return dbData.map((data) => this.convertToZaptecDataDTO(data));
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -291,6 +297,120 @@ export class HomeAutomationController {
         throw error;
       }
       throw new HttpException('Failed to get daily charging statistics', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves available chart periods for frontend selection
+   * @returns {Array} List of available chart period configurations
+   */
+  @Get('charts/periods')
+  public getChartPeriods(): ChartPeriodOption[] {
+    return CHART_PERIODS;
+  }
+
+  /**
+   * Retrieves solar production chart data for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<SolarProductionChartData>} Solar production data aggregated by period
+   */
+  @Get('charts/solar-production')
+  public async getSolarProductionChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<SolarProductionChartData> {
+    try {
+      return await this.homeAutomationService.getSolarProductionChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get solar production chart data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves grid exchange chart data (import/export) for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<GridExchangeChartData>} Grid import/export data aggregated by period
+   */
+  @Get('charts/grid-exchange')
+  public async getGridExchangeChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<GridExchangeChartData> {
+    try {
+      return await this.homeAutomationService.getGridExchangeChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get grid exchange chart data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves house consumption chart data for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<HouseConsumptionChartData>} House consumption data aggregated by period
+   */
+  @Get('charts/house-consumption')
+  public async getHouseConsumptionChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<HouseConsumptionChartData> {
+    try {
+      return await this.homeAutomationService.getHouseConsumptionChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get house consumption chart data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves Zaptec charger consumption chart data for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<ZaptecConsumptionChartData>} Zaptec consumption data aggregated by period
+   */
+  @Get('charts/zaptec-consumption')
+  public async getZaptecConsumptionChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<ZaptecConsumptionChartData> {
+    try {
+      return await this.homeAutomationService.getZaptecConsumptionChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get Zaptec consumption chart data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves combined dashboard chart data for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<DashboardChartData>} Combined chart data for dashboard view
+   */
+  @Get('charts/dashboard')
+  public async getDashboardChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<DashboardChartData> {
+    try {
+      return await this.homeAutomationService.getDashboardChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get dashboard chart data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

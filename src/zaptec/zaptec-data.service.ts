@@ -151,6 +151,32 @@ export class ZaptecDataService {
   }
 
   /**
+   * Retrieves Zaptec data within a specific time range
+   * @param {Date} startDate - Start date for data retrieval
+   * @param {Date} endDate - End date for data retrieval
+   * @returns {Promise<ZaptecDataDocument[]>} Array of data points in time range
+   */
+  public async getDataInTimeRange(startDate: Date, endDate: Date): Promise<ZaptecDataDocument[]> {
+    try {
+      const data = await this.zaptecDataModel
+        .find({
+          timestamp: {
+            $gte: startDate,
+            $lte: endDate
+          }
+        })
+        .sort({ timestamp: 1 })
+        .exec();
+
+      this.logger.debug(`Retrieved ${data.length} Zaptec data records from time range ${startDate.toISOString()} to ${endDate.toISOString()}`, this.context);
+      return data;
+    } catch (error) {
+      this.logger.error('Failed to retrieve Zaptec data by time range', error, this.context);
+      throw error;
+    }
+  }
+
+  /**
    * Deletes old Zaptec data to manage storage space
    * @param {number} daysToKeep - Number of days of data to retain (default: 30)
    * @returns {Promise<number>} Number of deleted records
