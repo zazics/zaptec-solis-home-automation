@@ -14,8 +14,7 @@ import {
   HouseConsumptionChartData,
   ZaptecConsumptionChartData,
   DashboardChartData,
-  ChartDataPoint,
-  CHART_PERIODS
+  ChartDataPoint
 } from '../common/dto/chart-data.dto';
 import { Constants } from '../constants';
 import * as SunCalc from 'suncalc';
@@ -587,10 +586,12 @@ export class HomeAutomationService implements OnModuleInit {
    * @returns {ChartDataPoint[]} Chart data points
    */
   private convertAggregationsToChartData(aggregations: any[], valueExtractor: (agg: any) => number): ChartDataPoint[] {
-    return aggregations.map(agg => ({
-      timestamp: new Date(agg.date),
-      value: valueExtractor(agg)
-    })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return aggregations
+      .map((agg) => ({
+        timestamp: new Date(agg.date),
+        value: valueExtractor(agg)
+      }))
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   /**
@@ -606,10 +607,10 @@ export class HomeAutomationService implements OnModuleInit {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       targetDate.setHours(0, 0, 0, 0);
-      
+
       return targetDate.getTime() < today.getTime();
     }
-    
+
     // For week, month, year periods, always use pre-aggregated data
     return true;
   }
@@ -625,19 +626,22 @@ export class HomeAutomationService implements OnModuleInit {
     date?: string
   ): Promise<SolarProductionChartData> {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
-    
+
     // Use pre-aggregated data for historical periods or current day aggregation
-    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
       const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-      
+
       const chartData = this.convertAggregationsToChartData(
         aggregations,
-        (agg) => agg.solarProduction?.maxPowerW || 0  // Use max power for chart display
+        (agg) => agg.solarProduction?.maxPowerW || 0 // Use max power for chart display
       );
-      
+
       // Calculate total energy from aggregations
       const totalEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
-      
+
       return {
         period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
         startDate,
@@ -646,7 +650,7 @@ export class HomeAutomationService implements OnModuleInit {
         totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3))
       };
     }
-    
+
     // Fallback to real-time calculation for current day or when aggregations are not available
     const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
     const chartData = this.aggregateData(rawData, groupBy, (item) => item.pv?.totalPowerDC || 0);
@@ -674,19 +678,22 @@ export class HomeAutomationService implements OnModuleInit {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
     // Use pre-aggregated data for historical periods
-    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
       const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-      
+
       const importedData = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.gridExchange?.maxImportW || 0
       );
-      
+
       const exportedData = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.gridExchange?.maxExportW || 0
       );
-      
+
       return {
         period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
         startDate,
@@ -729,14 +736,17 @@ export class HomeAutomationService implements OnModuleInit {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
     // Use pre-aggregated data for historical periods
-    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
       const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-      
+
       const chartData = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.houseConsumption?.maxPowerW || 0
       );
-      
+
       return {
         period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
         startDate,
@@ -770,14 +780,17 @@ export class HomeAutomationService implements OnModuleInit {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
     // Use pre-aggregated data for historical periods
-    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
       const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-      
+
       const chartData = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.zaptecConsumption?.maxPowerW || 0
       );
-      
+
       return {
         period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
         startDate,
@@ -811,37 +824,43 @@ export class HomeAutomationService implements OnModuleInit {
     const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
 
     // Use pre-aggregated data for historical periods
-    if (this.shouldUsePreAggregatedData(period, date) && (period === 'week' || period === 'month' || period === 'year')) {
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
       const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
-      
+
       const solarProduction = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.solarProduction?.maxPowerW || 0
       );
-      
+
       const houseConsumption = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.houseConsumption?.maxPowerW || 0
       );
-      
+
       const gridImported = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.gridExchange?.maxImportW || 0
       );
-      
+
       const gridExported = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.gridExchange?.maxExportW || 0
       );
-      
+
       const zaptecConsumption = this.convertAggregationsToChartData(
         aggregations,
         (agg) => agg.zaptecConsumption?.maxPowerW || 0
       );
-      
+
       // Calculate total solar energy from aggregations
-      const totalSolarEnergyKwh = aggregations.reduce((sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0), 0);
-      
+      const totalSolarEnergyKwh = aggregations.reduce(
+        (sum, agg) => sum + (agg.solarProduction?.totalEnergyKwh || 0),
+        0
+      );
+
       return {
         period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
         startDate,
@@ -884,53 +903,6 @@ export class HomeAutomationService implements OnModuleInit {
       gridImported,
       gridExported,
       totalSolarEnergyKwh: parseFloat(totalSolarEnergyKwh.toFixed(3)) // Round to 3 decimal places
-    };
-  }
-
-  /**
-   * Debug method to check data availability for a specific period
-   * @param {string} period - Chart period
-   * @param {string} date - Optional specific date
-   * @returns {object} Data count information
-   */
-  public async debugDataCount(period: 'day' | 'week' | 'month' | 'year', date?: string) {
-    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
-
-    const [solisData, zaptecData] = await Promise.all([
-      this.solisDataService.getDataInTimeRange(startDate, endDate),
-      this.zaptecDataService.getDataInTimeRange(startDate, endDate)
-    ]);
-
-    // Sample some raw data for debugging
-    const sampleSolisData = solisData.slice(0, 5).map((item) => ({
-      timestamp: item.timestamp,
-      pvPower: item.pv?.totalPowerDC || 0,
-      housePower: item.house?.consumption || 0
-    }));
-
-    return {
-      period,
-      groupBy,
-      timeRange: {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        durationHours: Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60))
-      },
-      dataCount: {
-        solis: solisData.length,
-        zaptec: zaptecData.length,
-        expectedPointsPerHour: groupBy === 'quarterly' ? 4 : groupBy === 'hourly' ? 1 : 0.042, // approximation pour daily/monthly
-        expectedTotalPoints: groupBy === 'quarterly' ? 96 : groupBy === 'hourly' ? 24 : 7
-      },
-      sampleData: {
-        solis: sampleSolisData,
-        firstDataPoint: solisData.length > 0 ? solisData[0].timestamp : null,
-        lastDataPoint: solisData.length > 0 ? solisData[solisData.length - 1].timestamp : null
-      },
-      aggregatedSample: this.aggregateData(solisData.slice(0, 20), groupBy, (item) => item.pv?.totalPowerDC || 0).slice(
-        0,
-        5
-      )
     };
   }
 }

@@ -6,10 +6,58 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { DailyAggregation, DailyAggregationDocument } from '../schemas/daily-aggregation.schema';
 import { SolisDataService } from '../../solis/solis-data.service';
 import { ZaptecDataService } from '../../zaptec/zaptec-data.service';
+import { SolisData } from '../../solis/schemas/solis-data.schema';
+import { ZaptecData } from '../../zaptec/schemas/zaptec-data.schema';
+
+// Interfaces for aggregation results
+interface SolarProductionAggregation {
+  totalEnergyKwh: number;
+  maxPowerW: number;
+  avgPowerW: number;
+}
+
+interface HouseConsumptionAggregation {
+  totalEnergyKwh: number;
+  maxPowerW: number;
+  avgPowerW: number;
+}
+
+interface GridExchangeAggregation {
+  importedEnergyKwh: number;
+  exportedEnergyKwh: number;
+  maxImportW: number;
+  maxExportW: number;
+}
+
+interface ZaptecConsumptionAggregation {
+  totalEnergyKwh: number;
+  chargingTimeHours: number;
+  maxPowerW: number;
+}
+
+interface BatteryAggregation {
+  chargedEnergyKwh: number;
+  dischargedEnergyKwh: number;
+  minSoc: number;
+  maxSoc: number;
+}
+
+interface DataQualityAggregation {
+  solisDataPoints: number;
+  zaptecDataPoints: number;
+  dataGapMinutes: number;
+  isComplete: boolean;
+}
+
+interface BackfillResult {
+  processed: number;
+  skipped: number;
+  errors: number;
+}
 
 @Injectable()
 export class DailyAggregationService {
@@ -78,7 +126,7 @@ export class DailyAggregationService {
       this.logger.log(
         `Successfully calculated aggregation for ${dateStr}: ${aggregation.solarProduction.totalEnergyKwh.toFixed(2)} kWh solar`
       );
-      return aggregation;
+      return aggregation as DailyAggregation;
     } catch (error) {
       this.logger.error(`Error calculating aggregation for ${dateStr}:`, error);
       throw error;
@@ -87,11 +135,15 @@ export class DailyAggregationService {
 
   /**
    * Compute daily aggregation from raw data
+   * @param {Date} date - Date for the aggregation
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @param {ZaptecData[]} zaptecData - Array of Zaptec charger data points
+   * @returns {Promise<Partial<DailyAggregation>>} Computed daily aggregation data
    */
   private async computeDailyAggregation(
     date: Date,
-    solisData: any[],
-    zaptecData: any[]
+    solisData: SolisData[],
+    zaptecData: ZaptecData[]
   ): Promise<Partial<DailyAggregation>> {
     // Solar production calculations
     const solarProduction = this.calculateSolarAggregation(solisData);
@@ -124,8 +176,10 @@ export class DailyAggregationService {
 
   /**
    * Calculate solar production aggregation
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @returns {SolarProductionAggregation} Solar production aggregation metrics
    */
-  private calculateSolarAggregation(solisData: any[]) {
+  private calculateSolarAggregation(solisData: SolisData[]): SolarProductionAggregation {
     if (!solisData || solisData.length === 0) {
       return { totalEnergyKwh: 0, maxPowerW: 0, avgPowerW: 0 };
     }
@@ -142,8 +196,10 @@ export class DailyAggregationService {
 
   /**
    * Calculate house consumption aggregation
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @returns {HouseConsumptionAggregation} House consumption aggregation metrics
    */
-  private calculateHouseAggregation(solisData: any[]) {
+  private calculateHouseAggregation(solisData: SolisData[]): HouseConsumptionAggregation {
     if (!solisData || solisData.length === 0) {
       return { totalEnergyKwh: 0, maxPowerW: 0, avgPowerW: 0 };
     }
@@ -160,8 +216,10 @@ export class DailyAggregationService {
 
   /**
    * Calculate grid exchange aggregation
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @returns {GridExchangeAggregation} Grid exchange aggregation metrics
    */
-  private calculateGridAggregation(solisData: any[]) {
+  private calculateGridAggregation(solisData: SolisData[]): GridExchangeAggregation {
     if (!solisData || solisData.length === 0) {
       return { importedEnergyKwh: 0, exportedEnergyKwh: 0, maxImportW: 0, maxExportW: 0 };
     }
@@ -187,8 +245,10 @@ export class DailyAggregationService {
 
   /**
    * Calculate Zaptec consumption aggregation
+   * @param {ZaptecData[]} zaptecData - Array of Zaptec charger data points
+   * @returns {ZaptecConsumptionAggregation} Zaptec consumption aggregation metrics
    */
-  private calculateZaptecAggregation(zaptecData: any[]) {
+  private calculateZaptecAggregation(zaptecData: ZaptecData[]): ZaptecConsumptionAggregation {
     if (!zaptecData || zaptecData.length === 0) {
       return { totalEnergyKwh: 0, chargingTimeHours: 0, maxPowerW: 0 };
     }
@@ -209,8 +269,10 @@ export class DailyAggregationService {
 
   /**
    * Calculate battery aggregation
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @returns {BatteryAggregation} Battery aggregation metrics
    */
-  private calculateBatteryAggregation(solisData: any[]) {
+  private calculateBatteryAggregation(solisData: SolisData[]): BatteryAggregation {
     if (!solisData || solisData.length === 0) {
       return { chargedEnergyKwh: 0, dischargedEnergyKwh: 0, minSoc: 0, maxSoc: 0 };
     }
@@ -235,8 +297,11 @@ export class DailyAggregationService {
 
   /**
    * Assess data quality for the day
+   * @param {SolisData[]} solisData - Array of Solis inverter data points
+   * @param {ZaptecData[]} zaptecData - Array of Zaptec charger data points
+   * @returns {DataQualityAggregation} Data quality assessment metrics
    */
-  private assessDataQuality(solisData: any[], zaptecData: any[]) {
+  private assessDataQuality(solisData: SolisData[], zaptecData: ZaptecData[]): DataQualityAggregation {
     const expectedPointsPerDay = 24 * 60; // One point per minute
     const solisDataPoints = solisData ? solisData.length : 0;
     const zaptecDataPoints = zaptecData ? zaptecData.length : 0;
@@ -259,8 +324,11 @@ export class DailyAggregationService {
 
   /**
    * Calculate total energy from power data (reuse existing logic)
+   * @param {T[]} rawData - Array of raw data points
+   * @param {Function} valueExtractor - Function to extract power value from each data point
+   * @returns {number} Total energy in kWh
    */
-  private calculateTotalEnergy(rawData: any[], valueExtractor: (item: any) => number): number {
+  private calculateTotalEnergy<T extends { timestamp: Date }>(rawData: T[], valueExtractor: (item: T) => number): number {
     if (!rawData || rawData.length === 0) {
       return 0;
     }
@@ -337,61 +405,62 @@ export class DailyAggregationService {
    * Backfill aggregations for the last 30 days
    * Checks if data exists for each day and if aggregation is missing, then creates it
    */
-  public async backfillLastMonth(): Promise<{ processed: number; skipped: number; errors: number }> {
+  public async backfillLastMonth(): Promise<BackfillResult> {
     this.logger.log('Starting backfill of last 30 days aggregations');
-    
+
     let processed = 0;
     let skipped = 0;
     let errors = 0;
-    
+
     // Start from 30 days ago, go up to yesterday
     for (let i = 30; i >= 1; i--) {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() - i);
       targetDate.setHours(0, 0, 0, 0);
-      
+
       const dateStr = targetDate.toISOString().split('T')[0];
-      
+
       try {
         // Check if aggregation already exists for this date
         const existingAggregation = await this.dailyAggregationModel.findOne({ date: targetDate }).exec();
-        
+
         if (existingAggregation) {
           this.logger.debug(`Aggregation already exists for ${dateStr}, skipping`);
           skipped++;
           continue;
         }
-        
+
         // Check if we have any data for this date
         const endDate = new Date(targetDate);
         endDate.setHours(23, 59, 59, 999);
-        
+
         const [solisData, zaptecData] = await Promise.all([
           this.solisDataService.getDataInTimeRange(targetDate, endDate),
           this.zaptecDataService.getDataInTimeRange(targetDate, endDate)
         ]);
-        
+
         // Skip if no data available for this date
         if (solisData.length === 0 && zaptecData.length === 0) {
           this.logger.debug(`No data available for ${dateStr}, skipping`);
           skipped++;
           continue;
         }
-        
+
         // Calculate and store aggregation
         await this.calculateAndStoreDailyAggregation(targetDate);
         processed++;
-        this.logger.log(`Processed backfill for ${dateStr} (${solisData.length} solis, ${zaptecData.length} zaptec points)`);
-        
+        this.logger.log(
+          `Processed backfill for ${dateStr} (${solisData.length} solis, ${zaptecData.length} zaptec points)`
+        );
       } catch (error) {
         errors++;
         this.logger.error(`Error processing backfill for ${dateStr}:`, error);
       }
     }
-    
+
     const result = { processed, skipped, errors };
     this.logger.log(`Backfill completed: ${processed} processed, ${skipped} skipped, ${errors} errors`);
-    
+
     return result;
   }
 }
