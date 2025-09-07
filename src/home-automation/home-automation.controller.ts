@@ -215,6 +215,24 @@ export class HomeAutomationController {
   }
 
   /**
+   * Retrieves real-time solar inverter data directly from COM port
+   * Bypasses database and queries the Solis inverter directly via RS485/Modbus
+   * @returns {Promise<SolisDataDTO>} Real-time solar data fresh from the device
+   */
+  @Get('solis/realtime')
+  public async getRealTimeSolisData(): Promise<SolisDataDTO> {
+    try {
+      const realTimeData = await this.homeAutomationService.getSolisRealTimeData();
+      return realTimeData;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get real-time solar data from inverter', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
    * Retrieves daily solar statistics for a specific date
    * @param {string} date - Date in YYYY-MM-DD format (defaults to today)
    * @returns {Promise<SolisDailyStats>} Daily energy statistics

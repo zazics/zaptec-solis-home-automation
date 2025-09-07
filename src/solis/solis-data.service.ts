@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SolisData, SolisDataDocument } from './schemas/solis-data.schema';
 import { LoggingService } from '../common/logging.service';
-import { SolisInverterData } from './models/solis.model';
+import { SolisDataDTO } from './models/solis.model';
 
 /**
  * Service for managing Solis data storage in MongoDB
@@ -19,10 +19,10 @@ export class SolisDataService {
 
   /**
    * Saves Solis inverter data to MongoDB
-   * @param {SolisInverterData} data - Complete inverter data from Solis service
+   * @param {SolisDataDTO} data - Complete inverter data from Solis service
    * @returns {Promise<SolisDataDocument>} Saved document
    */
-  public async saveData(data: SolisInverterData): Promise<SolisDataDocument> {
+  public async saveData(data: SolisDataDTO): Promise<SolisDataDocument> {
     try {
       // Calculate additional metrics
       const gridInjection = data.grid.activePower > 0 ? data.grid.activePower : 0;

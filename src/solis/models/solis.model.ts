@@ -53,9 +53,10 @@ export interface SolisBatteryData {
 }
 
 /**
- * Interface for complete Solis inverter data
+ * DTO for complete Solis inverter data
+ * Well-structured with specific interfaces for each component
  */
-export interface SolisInverterData {
+export interface SolisDataDTO {
   status: {
     code: number;
     text: string;

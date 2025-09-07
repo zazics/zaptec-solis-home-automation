@@ -6,7 +6,7 @@ import { ZaptecService } from '../zaptec/zaptec.service';
 import { ZaptecDataService } from '../zaptec/zaptec-data.service';
 import { ZaptecStatus } from '../zaptec/models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
-import { SolisInverterData } from '../solis/models/solis.model';
+import { SolisDataDTO } from '../solis/models/solis.model';
 import { AutomationConfig } from './models/home-automation.model';
 import {
   SolarProductionChartData,
@@ -139,7 +139,7 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Calculates available power for charging based on Solis data and current charging status
    */
-  private calculateAvailablePower(solisData: SolisInverterData, zaptecStatus: ZaptecStatus): number {
+  private calculateAvailablePower(solisData: SolisDataDTO, zaptecStatus: ZaptecStatus): number {
     const solarProduction = Math.min(solisData.pv.totalPowerDC, Constants.POWER.INVERTER_MAX_POWER);
     const houseConsumption = solisData.house.consumption;
     const batterySoc = solisData.battery.soc; // State of charge in %
@@ -226,7 +226,7 @@ export class HomeAutomationService implements OnModuleInit {
    */
   private async executeAutomationLogic(
     availablePower: number,
-    solisData: SolisInverterData,
+    solisData: SolisDataDTO,
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     switch (this.config.mode) {
@@ -254,7 +254,7 @@ export class HomeAutomationService implements OnModuleInit {
    */
   private async executeSurplusMode(
     availablePower: number,
-    solisData: SolisInverterData,
+    solisData: SolisDataDTO,
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     if (zaptecStatus.vehicleConnected) {
@@ -275,7 +275,7 @@ export class HomeAutomationService implements OnModuleInit {
    */
   private async executeMinimumMode(
     availablePower: number,
-    solisData: SolisInverterData,
+    solisData: SolisDataDTO,
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
@@ -301,7 +301,7 @@ export class HomeAutomationService implements OnModuleInit {
    */
   private async executeForceMinimumMode(
     availablePower: number,
-    solisData: SolisInverterData,
+    solisData: SolisDataDTO,
     zaptecStatus: ZaptecStatus
   ): Promise<void> {
     const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
@@ -356,7 +356,7 @@ export class HomeAutomationService implements OnModuleInit {
   /**
    * Saves data to MongoDB according to configured frequency
    */
-  private async saveDataToMongoDB(solisData: SolisInverterData): Promise<void> {
+  private async saveDataToMongoDB(solisData: SolisDataDTO): Promise<void> {
     try {
       await this.solisDataService.saveData(solisData);
       this.logger.debug(`Solis data saved to MongoDB (run ${this.automationRunCounter})`, this.context);
@@ -398,6 +398,23 @@ export class HomeAutomationService implements OnModuleInit {
   public async runManualAutomation(): Promise<void> {
     this.logger.log('Manual automation run requested', this.context);
     await this.runAutomation();
+  }
+
+  /**
+   * Retrieves real-time solar inverter data directly from COM port
+   * Bypasses database and queries the Solis inverter directly via RS485/Modbus
+   * @returns {Promise<SolisDataDTO>} Real-time solar data fresh from the device
+   */
+  public async getSolisRealTimeData(): Promise<SolisDataDTO> {
+    this.logger.log('Real-time Solis data requested', this.context);
+    try {
+      const realTimeData = await this.solisService.getAllData();
+      this.logger.debug('Real-time Solis data retrieved successfully', this.context);
+      return realTimeData;
+    } catch (error) {
+      this.logger.error('Failed to retrieve real-time Solis data from COM port', error, this.context);
+      throw error;
+    }
   }
 
   /**

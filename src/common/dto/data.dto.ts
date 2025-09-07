@@ -1,48 +1,6 @@
-/**
- * DTO for Solis solar inverter data
- * Clean representation without database-specific fields
- */
-export interface SolisDataDTO {
-  timestamp: Date;
-  status: {
-    code: number;
-    text: string;
-  };
-  pv: {
-    pv1: {
-      voltage: number;
-      current: number;
-      power: number;
-    };
-    pv2: {
-      voltage: number;
-      current: number;
-      power: number;
-    };
-    totalPowerDC: number;
-  };
-  ac: {
-    totalPowerAC: number;
-    frequency: number;
-    temperature: number;
-  };
-  house: {
-    consumption: number;
-    backupConsumption: number;
-  };
-  grid: {
-    activePower: number;
-    inverterPower: number;
-    importedEnergyTotal: number;
-    exportedEnergyTotal: number;
-  };
-  battery: {
-    power: number;
-    soc: number;
-    voltage: number;
-    current: number;
-  };
-}
+// SolisDataDTO is now defined in src/solis/models/solis.model.ts
+// with better structure using specific interfaces for each component
+export { SolisDataDTO } from '../../solis/models/solis.model';
 
 /**
  * DTO for Zaptec charger data

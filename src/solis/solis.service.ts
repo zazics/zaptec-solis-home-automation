@@ -9,7 +9,7 @@ import {
   SolisConnectionOptions,
   SolisGridData,
   SolisHouseData,
-  SolisInverterData,
+  SolisDataDTO,
   SolisPVData
 } from './models/solis.model';
 import { Constants } from '../constants';
@@ -449,7 +449,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Generates simulated inverter data for testing purposes
    */
-  private generateSimulatedData(): SolisInverterData {
+  private generateSimulatedData(): SolisDataDTO {
     const scenarios = [
       // Full Powa!
       {
@@ -546,7 +546,7 @@ export class SolisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Retrieves all inverter data at once
    */
-  public async getAllData(): Promise<SolisInverterData> {
+  public async getAllData(): Promise<SolisDataDTO> {
     // Si simulation activée, retourner des données simulées
     if (Constants.SOLIS.SIMULATE_DATA) {
       return this.generateSimulatedData();
