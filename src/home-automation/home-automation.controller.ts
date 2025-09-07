@@ -14,6 +14,7 @@ import {
   GridExchangeChartData,
   HouseConsumptionChartData,
   ZaptecConsumptionChartData,
+  BatteryChartData,
   DashboardChartData,
   CHART_PERIODS,
   ChartPeriodOption
@@ -419,6 +420,27 @@ export class HomeAutomationController {
         throw error;
       }
       throw new HttpException('Failed to get dashboard chart data', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  /**
+   * Retrieves battery charge and power chart data for specified period
+   * @param {string} period - Chart period: day, week, month, year
+   * @param {string} date - Optional specific date (YYYY-MM-DD format)
+   * @returns {Promise<BatteryChartData>} Battery SOC and power data aggregated by period
+   */
+  @Get('charts/battery')
+  public async getBatteryChart(
+    @Query('period') period: 'day' | 'week' | 'month' | 'year' = 'day',
+    @Query('date') date?: string
+  ): Promise<BatteryChartData> {
+    try {
+      return await this.homeAutomationService.getBatteryChart(period, date);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Failed to get battery chart data', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 

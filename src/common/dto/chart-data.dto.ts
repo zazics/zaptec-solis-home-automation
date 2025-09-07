@@ -57,6 +57,17 @@ export interface ZaptecConsumptionChartData {
 }
 
 /**
+ * DTO for battery charge and power chart data
+ */
+export interface BatteryChartData {
+  period: 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly';
+  startDate: Date;
+  endDate: Date;
+  data: ChartDataPoint[]; // SOC values in %
+  powerData: ChartDataPoint[]; // Power values in W (positive = discharging, negative = charging)
+}
+
+/**
  * Combined dashboard chart data
  */
 export interface DashboardChartData {

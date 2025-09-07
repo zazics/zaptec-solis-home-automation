@@ -13,6 +13,7 @@ import {
   GridExchangeChartData,
   HouseConsumptionChartData,
   ZaptecConsumptionChartData,
+  BatteryChartData,
   DashboardChartData,
   ChartDataPoint
 } from '../common/dto/chart-data.dto';
@@ -946,6 +947,59 @@ export class HomeAutomationService implements OnModuleInit {
       gridImported,
       gridExported,
       totalSolarEnergyKwh: parseFloat(totalSolarEnergyKwh.toFixed(3)) // Round to 3 decimal places
+    };
+  }
+
+  /**
+   * Retrieves battery charge and power chart data for specified period
+   * @param {string} period - Chart period
+   * @param {string} date - Optional specific date
+   * @returns {Promise<BatteryChartData>} Battery SOC and power chart data
+   */
+  public async getBatteryChart(
+    period: 'day' | 'week' | 'month' | 'year',
+    date?: string
+  ): Promise<BatteryChartData> {
+    const { startDate, endDate, groupBy } = this.getTimeRange(period, date);
+
+    // Use pre-aggregated data for historical periods
+    if (
+      this.shouldUsePreAggregatedData(period, date) &&
+      (period === 'week' || period === 'month' || period === 'year')
+    ) {
+      const aggregations = await this.dailyAggregationService.getAggregatedData(startDate, endDate);
+
+      const socData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.battery?.avgSocPercent || 0
+      );
+
+      const powerData = this.convertAggregationsToChartData(
+        aggregations,
+        (agg) => agg.battery?.avgPowerW || 0
+      );
+
+      return {
+        period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+        startDate,
+        endDate,
+        data: socData,
+        powerData: powerData
+      };
+    }
+
+    // Fallback to real-time calculation for current day
+    const rawData = await this.solisDataService.getDataInTimeRange(startDate, endDate);
+    
+    const socData = this.aggregateData(rawData, groupBy, (item) => item.battery?.soc || 0);
+    const powerData = this.aggregateData(rawData, groupBy, (item) => item.battery?.activePower || 0);
+
+    return {
+      period: groupBy as 'quarterly' | 'hourly' | 'daily' | 'monthly' | 'yearly',
+      startDate,
+      endDate,
+      data: socData,
+      powerData: powerData
     };
   }
 }
