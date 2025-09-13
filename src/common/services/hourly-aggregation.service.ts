@@ -59,7 +59,7 @@ export class HourlyAggregationService {
   private readonly logger = new Logger(HourlyAggregationService.name);
 
   constructor(
-    @InjectModel(HourlyAggregation.name) 
+    @InjectModel(HourlyAggregation.name)
     private readonly hourlyAggregationModel: Model<HourlyAggregationDocument>,
     private readonly solisDataService: SolisDataService,
     private readonly zaptecDataService: ZaptecDataService
@@ -70,17 +70,16 @@ export class HourlyAggregationService {
    * Processes the previous hour's data
    */
   @Cron('5 * * * *', { name: 'hourly-aggregation', timeZone: 'Europe/Brussels' })
-  async calculateHourlyAggregations(): Promise<void> {
+  public async calculateHourlyAggregations(): Promise<void> {
     this.logger.log('Starting hourly aggregation calculation');
-    
+
     try {
       // Calculate for the previous hour
       const now = new Date();
       const previousHour = new Date(now);
       previousHour.setHours(now.getHours() - 1, 0, 0, 0);
-      
+
       await this.calculateAndStoreHourlyAggregation(previousHour);
-      
     } catch (error) {
       this.logger.error('Failed to calculate hourly aggregations:', error);
     }
@@ -94,22 +93,24 @@ export class HourlyAggregationService {
   public async calculateAndStoreHourlyAggregation(dateHour: Date): Promise<HourlyAggregation> {
     const hourStart = new Date(dateHour);
     hourStart.setMinutes(0, 0, 0);
-    
+
     const hourEnd = new Date(hourStart);
     hourEnd.setMinutes(59, 59, 999);
-    
+
     const dateStr = hourStart.toISOString().split('T')[0];
     const hour = hourStart.getHours();
-    
+
     this.logger.debug(`Calculating hourly aggregation for ${dateStr} ${hour}:00`);
 
     try {
       // Check if aggregation already exists
-      const existing = await this.hourlyAggregationModel.findOne({ 
-        date: new Date(dateStr), 
-        hour 
-      }).exec();
-      
+      const existing = await this.hourlyAggregationModel
+        .findOne({
+          date: new Date(dateStr),
+          hour
+        })
+        .exec();
+
       if (existing) {
         this.logger.debug(`Hourly aggregation already exists for ${dateStr} ${hour}:00, updating`);
         await this.hourlyAggregationModel.deleteOne({ date: new Date(dateStr), hour }).exec();
@@ -128,12 +129,7 @@ export class HourlyAggregationService {
       }
 
       // Compute aggregation
-      const aggregationData = await this.computeHourlyAggregation(
-        new Date(dateStr), 
-        hour, 
-        solisData, 
-        zaptecData
-      );
+      const aggregationData = await this.computeHourlyAggregation(new Date(dateStr), hour, solisData, zaptecData);
 
       // Save to database
       const aggregation = new this.hourlyAggregationModel(aggregationData);
@@ -204,7 +200,7 @@ export class HourlyAggregationService {
     }
 
     const totalEnergyKwh = this.calculateTotalEnergy(solisData, (item) => item.pv?.totalPowerDC || 0);
-    const powers = solisData.map(item => item.pv?.totalPowerDC || 0);
+    const powers = solisData.map((item) => item.pv?.totalPowerDC || 0);
 
     return {
       totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3)),
@@ -224,7 +220,7 @@ export class HourlyAggregationService {
     }
 
     const totalEnergyKwh = this.calculateTotalEnergy(solisData, (item) => item.house?.consumption || 0);
-    const powers = solisData.map(item => item.house?.consumption || 0);
+    const powers = solisData.map((item) => item.house?.consumption || 0);
 
     return {
       totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3)),
@@ -243,16 +239,16 @@ export class HourlyAggregationService {
       return { importedEnergyKwh: 0, exportedEnergyKwh: 0, maxImportW: 0, maxExportW: 0 };
     }
 
-    const importedEnergyKwh = this.calculateTotalEnergy(solisData, (item) => 
+    const importedEnergyKwh = this.calculateTotalEnergy(solisData, (item) =>
       item.grid?.activePower > 0 ? item.grid.activePower : 0
     );
 
-    const exportedEnergyKwh = this.calculateTotalEnergy(solisData, (item) => 
+    const exportedEnergyKwh = this.calculateTotalEnergy(solisData, (item) =>
       item.grid?.activePower < 0 ? Math.abs(item.grid.activePower) : 0
     );
 
-    const imports = solisData.map(item => item.grid?.activePower > 0 ? item.grid.activePower : 0);
-    const exports = solisData.map(item => item.grid?.activePower < 0 ? Math.abs(item.grid.activePower) : 0);
+    const imports = solisData.map((item) => (item.grid?.activePower > 0 ? item.grid.activePower : 0));
+    const exports = solisData.map((item) => (item.grid?.activePower < 0 ? Math.abs(item.grid.activePower) : 0));
 
     return {
       importedEnergyKwh: parseFloat(importedEnergyKwh.toFixed(3)),
@@ -272,10 +268,10 @@ export class HourlyAggregationService {
       return { totalEnergyKwh: 0, chargingTimeMinutes: 0, maxPowerW: 0 };
     }
 
-    const totalEnergyKwh = this.calculateTotalEnergy(zaptecData, (item) => item.charging ? item.power || 0 : 0);
-    const chargingPoints = zaptecData.filter(item => item.charging);
+    const totalEnergyKwh = this.calculateTotalEnergy(zaptecData, (item) => (item.charging ? item.power || 0 : 0));
+    const chargingPoints = zaptecData.filter((item) => item.charging);
     const chargingTimeMinutes = Math.min(chargingPoints.length, 60); // Max 60 minutes in an hour
-    const chargingPowers = zaptecData.map(item => item.charging ? item.power || 0 : 0);
+    const chargingPowers = zaptecData.map((item) => (item.charging ? item.power || 0 : 0));
 
     return {
       totalEnergyKwh: parseFloat(totalEnergyKwh.toFixed(3)),
@@ -297,10 +293,8 @@ export class HourlyAggregationService {
     // Simple approximation - would need actual battery power data for precise calculation
     const chargedEnergyKwh = 0; // Placeholder - implement based on your battery data structure
     const dischargedEnergyKwh = 0; // Placeholder - implement based on your battery data structure
-    
-    const socs = solisData
-      .map(item => item.battery?.soc)
-      .filter(soc => soc !== undefined && soc !== null);
+
+    const socs = solisData.map((item) => item.battery?.soc).filter((soc) => soc !== undefined && soc !== null);
 
     return {
       chargedEnergyKwh: parseFloat(chargedEnergyKwh.toFixed(3)),
@@ -325,10 +319,10 @@ export class HourlyAggregationService {
     const totalExpectedPoints = expectedPointsPerHour;
     const actualPoints = Math.max(solisDataPoints, zaptecDataPoints);
     const dataGapMinutes = Math.max(0, totalExpectedPoints - actualPoints);
-    
+
     // Consider complete if we have at least 80% of expected data
     const completenessThreshold = 0.8;
-    const isComplete = actualPoints >= (totalExpectedPoints * completenessThreshold);
+    const isComplete = actualPoints >= totalExpectedPoints * completenessThreshold;
 
     return {
       solisDataPoints,
@@ -344,7 +338,10 @@ export class HourlyAggregationService {
    * @param {Function} valueExtractor - Function to extract power value from each data point
    * @returns {number} Total energy in kWh
    */
-  private calculateTotalEnergy<T extends { timestamp: Date }>(rawData: T[], valueExtractor: (item: T) => number): number {
+  private calculateTotalEnergy<T extends { timestamp: Date }>(
+    rawData: T[],
+    valueExtractor: (item: T) => number
+  ): number {
     if (!rawData || rawData.length === 0) {
       return 0;
     }
@@ -400,70 +397,71 @@ export class HourlyAggregationService {
    */
   public async backfillLastMonth(): Promise<HourlyBackfillResult> {
     this.logger.log('Starting backfill of last 30 days hourly aggregations');
-    
+
     let processed = 0;
     let skipped = 0;
     let errors = 0;
-    
+
     // Start from 30 days ago, go up to yesterday
     for (let dayOffset = 30; dayOffset >= 1; dayOffset--) {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() - dayOffset);
       targetDate.setHours(0, 0, 0, 0);
-      
+
       // Process each hour of the day
       for (let hour = 0; hour < 24; hour++) {
         const hourDate = new Date(targetDate);
         hourDate.setHours(hour);
-        
+
         const dateStr = targetDate.toISOString().split('T')[0];
-        
+
         try {
           // Check if aggregation already exists for this hour
-          const existingAggregation = await this.hourlyAggregationModel.findOne({ 
-            date: targetDate, 
-            hour 
-          }).exec();
-          
+          const existingAggregation = await this.hourlyAggregationModel
+            .findOne({
+              date: targetDate,
+              hour
+            })
+            .exec();
+
           if (existingAggregation) {
             skipped++;
             continue;
           }
-          
+
           // Check if we have any data for this hour
           const hourStart = new Date(hourDate);
           const hourEnd = new Date(hourDate);
           hourEnd.setMinutes(59, 59, 999);
-          
+
           const [solisData, zaptecData] = await Promise.all([
             this.solisDataService.getDataInTimeRange(hourStart, hourEnd),
             this.zaptecDataService.getDataInTimeRange(hourStart, hourEnd)
           ]);
-          
+
           // Skip if no data available for this hour
           if (solisData.length === 0 && zaptecData.length === 0) {
             skipped++;
             continue;
           }
-          
+
           // Calculate and store aggregation
           await this.calculateAndStoreHourlyAggregation(hourDate);
           processed++;
-          
+
           if (processed % 100 === 0) {
             this.logger.log(`Processed ${processed} hourly aggregations...`);
           }
-          
         } catch (error) {
           errors++;
           this.logger.error(`Error processing hourly backfill for ${dateStr} ${hour}:00:`, error);
         }
       }
     }
-    
+
     const result = { processed, skipped, errors };
     this.logger.log(`Hourly backfill completed: ${processed} processed, ${skipped} skipped, ${errors} errors`);
-    
+
     return result;
   }
 }

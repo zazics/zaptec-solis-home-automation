@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
 import dayjs from 'dayjs';
@@ -41,6 +42,9 @@ export class LoggingService {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
     }
+
+    // Clean old log files on startup
+    this.cleanOldLogFiles();
   }
 
   private writeToFile(level: string, message: string, context?: string): void {
@@ -102,5 +106,42 @@ export class LoggingService {
    */
   public verbose(message: string, context?: string): void {
     this.writeToFile('verbose', message, context);
+  }
+
+  /**
+   * Clean old log files older than 5 days
+   * Called automatically on service startup and daily via cron
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  private cleanOldLogFiles(): void {
+    try {
+      if (!fs.existsSync(this.logDir)) {
+        return;
+      }
+
+      const files = fs.readdirSync(this.logDir);
+      const now = Date.now();
+      const maxAge = 5 * 24 * 60 * 60 * 1000; // 5 days in milliseconds
+
+      files.forEach(file => {
+        const filePath = path.join(this.logDir, file);
+        const stats = fs.statSync(filePath);
+
+        // Only process log files from this application
+        if (file.startsWith(this.appName) && file.endsWith('.log')) {
+          const fileAge = now - stats.mtime.getTime();
+
+          if (fileAge > maxAge) {
+            fs.unlinkSync(filePath);
+            const ageInDays = Math.round(fileAge / (24 * 60 * 60 * 1000));
+            const message = `Deleted old log file: ${file} (${ageInDays} days old)`;
+            console.log(message);
+            this.writeToFile('info', message, 'LogCleanup');
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to clean old log files:', error);
+    }
   }
 }

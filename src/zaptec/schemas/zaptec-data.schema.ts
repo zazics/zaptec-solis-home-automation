@@ -6,40 +6,40 @@ export type ZaptecDataDocument = ZaptecData & Document;
 @Schema({ timestamps: true })
 export class ZaptecData {
   @Prop()
-  timestamp: Date;
+  public timestamp: Date;
 
   @Prop()
-  id: string;
+  public id: string;
 
   @Prop()
-  name: string;
+  public name: string;
 
   @Prop()
-  online: boolean;
+  public online: boolean;
 
   @Prop()
-  charging: boolean;
+  public charging: boolean;
 
   @Prop()
-  power: number; // Watts
+  public power: number; // Watts
 
   @Prop()
-  totalPower: number; // W
+  public totalPower: number; // W
 
   @Prop()
-  ChargeCurrentSet: number; // A
+  public ChargeCurrentSet: number; // A
 
   @Prop()
-  vehicleConnected: boolean;
+  public vehicleConnected: boolean;
 
   @Prop()
-  operatingMode: string; // ChargerOperationMode
+  public operatingMode: string; // ChargerOperationMode
 
   @Prop()
-  deviceType: number;
+  public deviceType: number;
 
   @Prop()
-  serialNo: string;
+  public serialNo: string;
 }
 
 export const ZaptecDataSchema = SchemaFactory.createForClass(ZaptecData);
