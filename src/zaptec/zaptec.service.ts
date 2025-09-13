@@ -291,7 +291,7 @@ export class ZaptecService implements OnModuleInit {
    */
   public async manageMinimumCharging(sufficientPower: boolean): Promise<void> {
     const MINIMUM_CURRENT = 6; // 6A minimum charging current
-    
+
     // Use cached status to avoid redundant API calls
     const currentStatus = this.cachedStatus;
     if (!currentStatus) {
@@ -388,8 +388,11 @@ export class ZaptecService implements OnModuleInit {
         // First time detecting insufficient power
         if (!this.insufficientPowerFirstDetected) {
           this.insufficientPowerFirstDetected = now;
+
+          // Immediately reduce to minimum charging (6A) on first detection
+          await this.setMaxCurrent(6);
           this.logger.log(
-            `Insufficient power detected (${availablePower}W < ${minPowerWithTolerance}W), waiting for next verification before stopping charging`,
+            `Insufficient power detected (${availablePower}W < ${minPowerWithTolerance}W), reduced to minimum charging (6A), waiting for next verification before stopping`,
             this.context
           );
         } else {
@@ -511,7 +514,6 @@ export class ZaptecService implements OnModuleInit {
   public getCacheTimestamp(): Date | null {
     return this.statusCacheTimestamp;
   }
-
 
   /**
    * Generates simulated Zaptec charger status for development/testing
