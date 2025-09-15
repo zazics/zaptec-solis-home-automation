@@ -18,7 +18,16 @@ import { ApiKeyMiddleware } from './common/middleware/api-key.middleware';
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI', 'mongodb://localhost:27017/solis-automation')
+        uri: configService.get<string>('MONGODB_URI', 'mongodb://localhost:27017/solis-automation'),
+        maxPoolSize: 10,
+        minPoolSize: 2,
+        maxIdleTimeMS: 30000,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        bufferMaxEntries: 0,
+        retryWrites: true,
+        retryReads: true,
+        connectTimeoutMS: 10000
       }),
       inject: [ConfigService]
     }),
