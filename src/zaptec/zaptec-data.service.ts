@@ -4,7 +4,6 @@ import { Model } from 'mongoose';
 import { ZaptecData, ZaptecDataDocument } from './schemas/zaptec-data.schema';
 import { ZaptecStatus } from './models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
-import { MongoDbRetryUtil } from '../common/utils/mongodb-retry.util';
 
 /**
  * Service for handling Zaptec data storage and retrieval in MongoDB
@@ -61,21 +60,19 @@ export class ZaptecDataService {
    * @returns {Promise<ZaptecDataDocument[]>} Array of recent charger data points
    */
   public async getRecentData(limit: number = 100): Promise<ZaptecDataDocument[]> {
-    return await MongoDbRetryUtil.executeWithRetry(
-      async () => {
-        const data = await this.zaptecDataModel
-          .find()
-          .sort({ timestamp: -1 })
-          .limit(limit)
-          .exec();
+    try {
+      const data = await this.zaptecDataModel
+        .find()
+        .sort({ timestamp: -1 })
+        .limit(limit)
+        .exec();
 
-        this.logger.debug(`Retrieved ${data.length} Zaptec data records from MongoDB`, this.context);
-        return data;
-      },
-      'Get recent Zaptec data',
-      this.logger,
-      this.context
-    );
+      this.logger.debug(`Retrieved ${data.length} Zaptec data records from MongoDB`, this.context);
+      return data;
+    } catch (error) {
+      this.logger.error('Failed to retrieve Zaptec data from MongoDB', error, this.context);
+      throw error;
+    }
   }
 
   /**
@@ -83,25 +80,23 @@ export class ZaptecDataService {
    * @returns {Promise<ZaptecDataDocument | null>} Latest charger data point or null if none found
    */
   public async getLatestData(): Promise<ZaptecDataDocument | null> {
-    return await MongoDbRetryUtil.executeWithRetry(
-      async () => {
-        const data = await this.zaptecDataModel
-          .findOne()
-          .sort({ timestamp: -1 })
-          .exec();
+    try {
+      const data = await this.zaptecDataModel
+        .findOne()
+        .sort({ timestamp: -1 })
+        .exec();
 
-        if (data) {
-          this.logger.debug('Retrieved latest Zaptec data from MongoDB', this.context);
-        } else {
-          this.logger.warn('No Zaptec data found in MongoDB', this.context);
-        }
+      if (data) {
+        this.logger.debug('Retrieved latest Zaptec data from MongoDB', this.context);
+      } else {
+        this.logger.warn('No Zaptec data found in MongoDB', this.context);
+      }
 
-        return data;
-      },
-      'Get latest Zaptec data',
-      this.logger,
-      this.context
-    );
+      return data;
+    } catch (error) {
+      this.logger.error('Failed to retrieve latest Zaptec data from MongoDB', error, this.context);
+      throw error;
+    }
   }
 
   /**
@@ -113,7 +108,7 @@ export class ZaptecDataService {
     try {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
-      
+
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
@@ -131,8 +126,8 @@ export class ZaptecDataService {
       const totalRecords = data.length;
       const chargingRecords = data.filter(d => d.charging);
       const totalChargingTime = chargingRecords.length;
-      const averagePower = chargingRecords.length > 0 
-        ? chargingRecords.reduce((sum, d) => sum + (d.power || 0), 0) / chargingRecords.length 
+      const averagePower = chargingRecords.length > 0
+        ? chargingRecords.reduce((sum, d) => sum + (d.power || 0), 0) / chargingRecords.length
         : 0;
       const maxPower = data.reduce((max, d) => Math.max(max, d.power || 0), 0);
 
