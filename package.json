@@ -1,6 +1,6 @@
 {
   "name": "zaptec-solis-home-automation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "NestJS application to control Zaptec charging station based on Solis inverter data",
   "main": "dist/main.js",
   "scripts": {
