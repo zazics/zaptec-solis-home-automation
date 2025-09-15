@@ -44,13 +44,13 @@ export class TapoService {
   private lastUpdate: Date = new Date();
 
   constructor() {
-    this.initializeService();
+    // Initialization will be called from AppService.onModuleInit()
   }
 
   /**
    * Initialize Tapo service with cloud login and device configuration
    */
-  private async initializeService(): Promise<void> {
+  public async initializeService(): Promise<void> {
     try {
       // Check if Tapo service is enabled
       if (!Constants.TAPO.ENABLED) {

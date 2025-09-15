@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { ZaptecModule } from './zaptec/zaptec.module';
 import { HomeAutomationModule } from './home-automation/home-automation.module';
 import { WeatherModule } from './weather/weather.module';
+import { TapoModule } from './tapo/tapo.module';
 import { LoggingService } from './common/logging.service';
 import { ApiKeyMiddleware } from './common/middleware/api-key.middleware';
 
@@ -33,7 +34,8 @@ import { ApiKeyMiddleware } from './common/middleware/api-key.middleware';
     ScheduleModule.forRoot(),
     ZaptecModule,
     HomeAutomationModule,
-    WeatherModule
+    WeatherModule,
+    TapoModule
   ],
   controllers: [AppController],
   providers: [AppService, LoggingService]

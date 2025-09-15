@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { LoggingService } from './common/logging.service';
 import { HomeAutomationService } from './home-automation/home-automation.service';
+import { TapoService } from './tapo/tapo.service';
 
 @Injectable()
 export class AppService implements OnModuleInit {
@@ -11,13 +12,16 @@ export class AppService implements OnModuleInit {
    */
   constructor(
     private readonly homeAutomationService: HomeAutomationService,
-    private readonly logger: LoggingService
+    private readonly logger: LoggingService,
+    private readonly tapoService: TapoService
   ) {}
 
   /**
    * Called after all dependencies have been injected and modules initialized
    */
   public async onModuleInit(): Promise<void> {
+    // Initialize TapoService now that all dependencies are injected
+    await this.tapoService.initializeService();
     // await this.test();
   }
 
