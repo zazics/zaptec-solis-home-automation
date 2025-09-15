@@ -27,7 +27,13 @@ import { ApiKeyMiddleware } from './common/middleware/api-key.middleware';
         socketTimeoutMS: 45000,
         retryWrites: true,
         retryReads: true,
-        connectTimeoutMS: 10000
+        connectTimeoutMS: 10000,
+        heartbeatFrequencyMS: 10000,
+        keepAlive: true,
+        keepAliveInitialDelay: 300000,
+        autoReconnect: true,
+        reconnectTries: Number.MAX_VALUE,
+        reconnectInterval: 1000
       }),
       inject: [ConfigService]
     }),

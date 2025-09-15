@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { SolisData, SolisDataDocument } from './schemas/solis-data.schema';
 import { LoggingService } from '../common/logging.service';
 import { SolisDataDTO } from './models/solis.model';
+import { MongoDbRetryUtil } from '../common/utils/mongodb-retry.util';
 
 /**
  * Service for managing Solis data storage in MongoDB
@@ -59,12 +60,14 @@ export class SolisDataService {
    * @returns {Promise<SolisDataDocument[]>} Array of recent data points
    */
   public async getRecentData(limit: number = 100): Promise<SolisDataDocument[]> {
-    try {
-      return await this.solisDataModel.find().sort({ timestamp: -1 }).limit(limit).exec();
-    } catch (error) {
-      this.logger.error('Failed to retrieve recent data', error, this.context);
-      throw error;
-    }
+    return await MongoDbRetryUtil.executeWithRetry(
+      async () => {
+        return await this.solisDataModel.find().sort({ timestamp: -1 }).limit(limit).exec();
+      },
+      'Get recent Solis data',
+      this.logger,
+      this.context
+    );
   }
 
   /**
@@ -74,20 +77,22 @@ export class SolisDataService {
    * @returns {Promise<SolisDataDocument[]>} Array of data points in date range
    */
   public async getDataByDateRange(startDate: Date, endDate: Date): Promise<SolisDataDocument[]> {
-    try {
-      return await this.solisDataModel
-        .find({
-          timestamp: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-        })
-        .sort({ timestamp: 1 })
-        .exec();
-    } catch (error) {
-      this.logger.error('Failed to retrieve data by date range', error, this.context);
-      throw error;
-    }
+    return await MongoDbRetryUtil.executeWithRetry(
+      async () => {
+        return await this.solisDataModel
+          .find({
+            timestamp: {
+              $gte: startDate,
+              $lte: endDate,
+            },
+          })
+          .sort({ timestamp: 1 })
+          .exec();
+      },
+      'Get Solis data by date range',
+      this.logger,
+      this.context
+    );
   }
 
   /**
@@ -96,47 +101,49 @@ export class SolisDataService {
    * @returns {Promise<any>} Daily energy statistics
    */
   public async getDailyStats(date: Date = new Date()): Promise<any> {
-    try {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
+    return await MongoDbRetryUtil.executeWithRetry(
+      async () => {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
 
-      const pipeline = [
-        {
-          $match: {
-            timestamp: {
-              $gte: startOfDay,
-              $lte: endOfDay,
+        const pipeline = [
+          {
+            $match: {
+              timestamp: {
+                $gte: startOfDay,
+                $lte: endOfDay,
+              },
             },
           },
-        },
-        {
-          $group: {
-            _id: null,
-            maxPvPower: { $max: '$pv.totalPowerDC' },
-            avgPvPower: { $avg: '$pv.totalPowerDC' },
-            maxAcPower: { $max: '$ac.totalPowerAC' },
-            avgAcPower: { $avg: '$ac.totalPowerAC' },
-            maxHouseConsumption: { $max: '$house.consumption' },
-            avgHouseConsumption: { $avg: '$house.consumption' },
-            maxGridInjection: { $max: '$gridInjection' },
-            avgGridInjection: { $avg: '$gridInjection' },
-            totalDataPoints: { $sum: 1 },
-            minBatterySoc: { $min: '$battery.soc' },
-            maxBatterySoc: { $max: '$battery.soc' },
-            avgBatterySoc: { $avg: '$battery.soc' },
+          {
+            $group: {
+              _id: null,
+              maxPvPower: { $max: '$pv.totalPowerDC' },
+              avgPvPower: { $avg: '$pv.totalPowerDC' },
+              maxAcPower: { $max: '$ac.totalPowerAC' },
+              avgAcPower: { $avg: '$ac.totalPowerAC' },
+              maxHouseConsumption: { $max: '$house.consumption' },
+              avgHouseConsumption: { $avg: '$house.consumption' },
+              maxGridInjection: { $max: '$gridInjection' },
+              avgGridInjection: { $avg: '$gridInjection' },
+              totalDataPoints: { $sum: 1 },
+              minBatterySoc: { $min: '$battery.soc' },
+              maxBatterySoc: { $max: '$battery.soc' },
+              avgBatterySoc: { $avg: '$battery.soc' },
+            },
           },
-        },
-      ];
+        ];
 
-      const result = await this.solisDataModel.aggregate(pipeline).exec();
-      return result[0] || {};
-    } catch (error) {
-      this.logger.error('Failed to calculate daily stats', error, this.context);
-      throw error;
-    }
+        const result = await this.solisDataModel.aggregate(pipeline).exec();
+        return result[0] || {};
+      },
+      'Get daily Solis statistics',
+      this.logger,
+      this.context
+    );
   }
 
   /**

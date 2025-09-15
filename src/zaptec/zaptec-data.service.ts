@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { ZaptecData, ZaptecDataDocument } from './schemas/zaptec-data.schema';
 import { ZaptecStatus } from './models/zaptec.model';
 import { LoggingService } from '../common/logging.service';
+import { MongoDbRetryUtil } from '../common/utils/mongodb-retry.util';
 
 /**
  * Service for handling Zaptec data storage and retrieval in MongoDB
@@ -60,19 +61,21 @@ export class ZaptecDataService {
    * @returns {Promise<ZaptecDataDocument[]>} Array of recent charger data points
    */
   public async getRecentData(limit: number = 100): Promise<ZaptecDataDocument[]> {
-    try {
-      const data = await this.zaptecDataModel
-        .find()
-        .sort({ timestamp: -1 })
-        .limit(limit)
-        .exec();
+    return await MongoDbRetryUtil.executeWithRetry(
+      async () => {
+        const data = await this.zaptecDataModel
+          .find()
+          .sort({ timestamp: -1 })
+          .limit(limit)
+          .exec();
 
-      this.logger.debug(`Retrieved ${data.length} Zaptec data records from MongoDB`, this.context);
-      return data;
-    } catch (error) {
-      this.logger.error('Failed to retrieve Zaptec data from MongoDB', error, this.context);
-      throw error;
-    }
+        this.logger.debug(`Retrieved ${data.length} Zaptec data records from MongoDB`, this.context);
+        return data;
+      },
+      'Get recent Zaptec data',
+      this.logger,
+      this.context
+    );
   }
 
   /**
@@ -80,23 +83,25 @@ export class ZaptecDataService {
    * @returns {Promise<ZaptecDataDocument | null>} Latest charger data point or null if none found
    */
   public async getLatestData(): Promise<ZaptecDataDocument | null> {
-    try {
-      const data = await this.zaptecDataModel
-        .findOne()
-        .sort({ timestamp: -1 })
-        .exec();
+    return await MongoDbRetryUtil.executeWithRetry(
+      async () => {
+        const data = await this.zaptecDataModel
+          .findOne()
+          .sort({ timestamp: -1 })
+          .exec();
 
-      if (data) {
-        this.logger.debug('Retrieved latest Zaptec data from MongoDB', this.context);
-      } else {
-        this.logger.warn('No Zaptec data found in MongoDB', this.context);
-      }
-      
-      return data;
-    } catch (error) {
-      this.logger.error('Failed to retrieve latest Zaptec data from MongoDB', error, this.context);
-      throw error;
-    }
+        if (data) {
+          this.logger.debug('Retrieved latest Zaptec data from MongoDB', this.context);
+        } else {
+          this.logger.warn('No Zaptec data found in MongoDB', this.context);
+        }
+
+        return data;
+      },
+      'Get latest Zaptec data',
+      this.logger,
+      this.context
+    );
   }
 
   /**
