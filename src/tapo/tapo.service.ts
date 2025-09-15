@@ -52,6 +52,12 @@ export class TapoService {
    */
   private async initializeService(): Promise<void> {
     try {
+      // Check if Tapo service is enabled
+      if (!Constants.TAPO.ENABLED) {
+        this.logger.log('Tapo service is disabled via TAPO_ENABLED environment variable', this.context);
+        return;
+      }
+
       // Initialize cloud API with credentials
       if (Constants.TAPO.USERNAME && Constants.TAPO.PASSWORD) {
         this.cloudApi = await cloudLogin(Constants.TAPO.USERNAME, Constants.TAPO.PASSWORD);
@@ -313,7 +319,7 @@ export class TapoService {
    * Check if service is properly configured and ready
    */
   public isServiceReady(): boolean {
-    return !!(this.cloudApi && Constants.TAPO.USERNAME && Constants.TAPO.PASSWORD);
+    return !!(Constants.TAPO.ENABLED && this.cloudApi && Constants.TAPO.USERNAME && Constants.TAPO.PASSWORD);
   }
 
   /**

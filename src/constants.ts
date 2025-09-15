@@ -238,6 +238,10 @@ export class Constants {
 
     get AUTOMATION_ENABLED(): boolean {
       return process.env.TAPO_AUTOMATION_ENABLED === 'true';
+    },
+
+    get ENABLED(): boolean {
+      return process.env.TAPO_ENABLED !== 'false';
     }
   };
 }
