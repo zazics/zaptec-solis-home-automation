@@ -20,15 +20,15 @@ import { ApiKeyMiddleware } from './common/middleware/api-key.middleware';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI', 'mongodb://127.0.0.1:27017/solis-automation'),
-        maxPoolSize: 10,
-        minPoolSize: 2,
-        maxIdleTimeMS: 30000,
+        maxPoolSize: 5,
+        minPoolSize: 1,
+        maxIdleTimeMS: 120000,
         serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
+        socketTimeoutMS: 25000,
         retryWrites: true,
         retryReads: true,
         connectTimeoutMS: 10000,
-        heartbeatFrequencyMS: 10000
+        heartbeatFrequencyMS: 30000
       }),
       inject: [ConfigService]
     }),
