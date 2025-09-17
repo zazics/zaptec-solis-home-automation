@@ -64,7 +64,8 @@ export class HomeAutomationService implements OnModuleInit {
       enabled: Constants.AUTOMATION.ENABLED,
       mode: Constants.AUTOMATION.MODE,
       maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
-      priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE
+      priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE,
+      neverStopCharging: Constants.AUTOMATION.NEVER_STOP_CHARGING
     };
 
     this.logger.log(`Home automation service initialized with config ${JSON.stringify(this.config)}`, this.context);
@@ -225,9 +226,6 @@ export class HomeAutomationService implements OnModuleInit {
         await this.executeMinimumMode(availablePower, solisData, zaptecStatus);
         break;
 
-      case 'force_minimum':
-        await this.executeForceMinimumMode(availablePower, solisData, zaptecStatus);
-        break;
 
       case 'manual':
         // Manual mode - no automation
@@ -238,6 +236,7 @@ export class HomeAutomationService implements OnModuleInit {
 
   /**
    * Surplus mode: charge only when there is solar surplus
+   * If neverStopCharging is enabled, charging continues even with insufficient surplus
    */
   private async executeSurplusMode(
     availablePower: number,
@@ -247,17 +246,18 @@ export class HomeAutomationService implements OnModuleInit {
     if (zaptecStatus.vehicleConnected) {
       // Vehicle connected - let optimizeCharging handle all power decisions
       const chargingPower = Math.min(availablePower, this.config.maxChargingPower);
-      this.logger.log(`Surplus mode: Processing ${chargingPower}W available for charging`, this.context);
-      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc);
-    } else if (zaptecStatus.charging) {
-      // Vehicle disconnected but charging active
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Surplus mode: Stopping charging - vehicle disconnected', this.context);
+      this.logger.log(
+        `Surplus mode: Processing ${chargingPower}W available for charging (neverStopCharging: ${this.config.neverStopCharging})`,
+        this.context
+      );
+      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc, this.config.neverStopCharging);
     }
+    // Note: No need to handle vehicle disconnection - Zaptec charger automatically stops charging
   }
 
   /**
    * Minimum mode: charge at 6A when sufficient solar power is available
+   * If neverStopCharging is enabled, always charge at 6A regardless of power availability
    * Minimum power required: 6A * 230V * 1 phase = 1380W
    */
   private async executeMinimumMode(
@@ -268,46 +268,18 @@ export class HomeAutomationService implements OnModuleInit {
     const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
 
     if (zaptecStatus.vehicleConnected) {
-      const sufficientPower = availablePower >= MINIMUM_CHARGING_POWER;
+      const sufficientPower = availablePower >= MINIMUM_CHARGING_POWER || this.config.neverStopCharging;
       this.logger.log(
-        `Minimum mode: ${availablePower}W available (need ${MINIMUM_CHARGING_POWER}W), sufficient: ${sufficientPower}`,
+        `Minimum mode: ${availablePower}W available (need ${MINIMUM_CHARGING_POWER}W), sufficient: ${sufficientPower} (neverStopCharging: ${this.config.neverStopCharging})`,
         this.context
       );
 
       // Use simple charging management at 6A
       await this.zaptecService.manageMinimumCharging(sufficientPower);
-    } else if (zaptecStatus.charging) {
-      // Vehicle disconnected but charging active
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Minimum mode: Stopping charging - vehicle disconnected', this.context);
     }
+    // Note: No need to handle vehicle disconnection - Zaptec charger automatically stops charging
   }
 
-  /**
-   * Force minimum mode: always charge at 6A regardless of solar power availability
-   */
-  private async executeForceMinimumMode(
-    availablePower: number,
-    solisData: SolisDataDTO,
-    zaptecStatus: ZaptecStatus
-  ): Promise<void> {
-    const MINIMUM_CHARGING_POWER = 1380; // 6A * 230V * 1 phase
-
-    if (zaptecStatus.vehicleConnected) {
-      // Always charge at 6A when vehicle connected, regardless of solar production
-      this.logger.log(
-        `Force minimum mode: Charging at 6A (${MINIMUM_CHARGING_POWER}W) regardless of solar power (${availablePower}W available)`,
-        this.context
-      );
-
-      // Always sufficient power in force mode
-      await this.zaptecService.manageMinimumCharging(true);
-    } else if (zaptecStatus.charging) {
-      // Vehicle disconnected but charging active
-      await this.zaptecService.setChargingEnabled(false);
-      this.logger.log('Force minimum mode: Stopping charging - vehicle disconnected', this.context);
-    }
-  }
 
   /**
    * Updates automation configuration

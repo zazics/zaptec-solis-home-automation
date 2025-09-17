@@ -331,7 +331,7 @@ export class ZaptecService implements OnModuleInit {
   /**
    * Configures optimal charging parameters based on available power and battery level
    */
-  public async optimizeCharging(availablePower: number, batterySoc?: number): Promise<void> {
+  public async optimizeCharging(availablePower: number, batterySoc?: number, neverStopCharging?: boolean): Promise<void> {
     // Typical voltage in Europe (230V single-phase)
     const voltage = 230;
     const minCurrent = 6;
@@ -380,8 +380,8 @@ export class ZaptecService implements OnModuleInit {
       return;
     }
 
-    if (availablePower < minPowerWithTolerance) {
-      // Not enough power to charge
+    if (availablePower < minPowerWithTolerance && !neverStopCharging) {
+      // Not enough power to charge and neverStopCharging is disabled
       if (currentStatus.charging) {
         const now = new Date();
 
@@ -397,19 +397,19 @@ export class ZaptecService implements OnModuleInit {
           );
         } else {
           // Check if enough time has passed since first detection (wait for next automation cycle)
-          const timeSinceFirstDetection = now.getTime() - this.insufficientPowerFirstDetected.getTime();
+          const timeSinceFirstDetected = now.getTime() - this.insufficientPowerFirstDetected.getTime();
           const waitTimeMs = 90000; // 90 seconds (more than one automation cycle)
 
-          if (timeSinceFirstDetection >= waitTimeMs) {
+          if (timeSinceFirstDetected >= waitTimeMs) {
             await this.setChargingEnabled(false);
             this.logger.log(
-              `Insufficient power confirmed after ${Math.round(timeSinceFirstDetection / 1000)}s, charging disabled`,
+              `Insufficient power confirmed after ${Math.round(timeSinceFirstDetected / 1000)}s, charging disabled`,
               this.context
             );
             this.insufficientPowerFirstDetected = null; // Reset for next time
           } else {
             this.logger.log(
-              `Insufficient power still detected, waiting ${Math.round((waitTimeMs - timeSinceFirstDetection) / 1000)}s more before stopping`,
+              `Insufficient power still detected, waiting ${Math.round((waitTimeMs - timeSinceFirstDetected) / 1000)}s more before stopping`,
               this.context
             );
           }
@@ -417,6 +417,23 @@ export class ZaptecService implements OnModuleInit {
       } else {
         this.logger.log(
           `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W), charging already disabled`,
+          this.context
+        );
+      }
+    } else if (availablePower < minPowerWithTolerance && neverStopCharging) {
+      // Not enough power but neverStopCharging is enabled - keep charging at minimum
+      if (currentStatus.charging) {
+        await this.setMaxCurrent(6);
+        this.logger.log(
+          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W) but neverStopCharging enabled, continuing at 6A`,
+          this.context
+        );
+      } else {
+        // Start charging at minimum current
+        await this.setMaxCurrent(6);
+        await this.setChargingEnabled(true);
+        this.logger.log(
+          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W) but neverStopCharging enabled, starting charging at 6A`,
           this.context
         );
       }

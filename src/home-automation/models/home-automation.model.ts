@@ -9,14 +9,15 @@ export interface AutomationStatus {
     current: number; // A
     power: number; // W
   };
-  mode: 'surplus' | 'manual' | 'minimum' | 'force_minimum';
+  mode: 'surplus' | 'manual' | 'minimum';
 }
 
 export interface AutomationConfig {
   enabled: boolean;
-  mode: 'surplus' | 'manual' | 'minimum' | 'force_minimum';
+  mode: 'surplus' | 'manual' | 'minimum';
   maxChargingPower: number; // Maximum charging power (W)
   priorityLoadReserve: number; // Power to reserve for priority loads (W)
+  neverStopCharging: boolean; // Never stop charging once started (overrides power thresholds)
 }
 
 /**
@@ -45,7 +46,7 @@ export interface DashboardResponse {
   config: AutomationConfig;
   summary: {
     systemStatus: 'active' | 'inactive';
-    currentMode: 'surplus' | 'manual' | 'minimum' | 'force_minimum';
+    currentMode: 'surplus' | 'manual' | 'minimum';
     solarEfficiency: number;
     chargingEfficiency: number;
   };

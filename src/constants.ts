@@ -94,8 +94,8 @@ export class Constants {
       return process.env.AUTOMATION_ENABLED === 'true';
     },
 
-    get MODE(): 'surplus' | 'manual' | 'minimum' | 'force_minimum' {
-      return (process.env.AUTOMATION_MODE as 'surplus' | 'manual' | 'minimum' | 'force_minimum') || 'surplus';
+    get MODE(): 'surplus' | 'manual' | 'minimum' {
+      return (process.env.AUTOMATION_MODE as 'surplus' | 'manual' | 'minimum') || 'surplus';
     },
 
 
@@ -106,6 +106,10 @@ export class Constants {
 
     get PRIORITY_LOAD_RESERVE(): number {
       return _.toNumber(process.env.PRIORITY_LOAD_RESERVE);
+    },
+
+    get NEVER_STOP_CHARGING(): boolean {
+      return process.env.NEVER_STOP_CHARGING === 'true';
     },
 
     get HIGH_CONSUMPTION_REDUCTION_PERCENT(): number {

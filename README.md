@@ -63,9 +63,10 @@ Configure the following variables in your `.env` file:
 #### Automation Settings
 
 - `AUTOMATION_ENABLED=true` - Enable/disable automation (default: true)
-- `AUTOMATION_MODE=surplus` - Control mode: surplus/manual (default: surplus)
+- `AUTOMATION_MODE=surplus` - Control mode: surplus/minimum/manual (default: surplus)
 - `MAX_CHARGING_POWER=7360` - Maximum charging power in W (default: 7360)
 - `PRIORITY_LOAD_RESERVE=500` - Power reserve for priority loads in W (default: 500)
+- `NEVER_STOP_CHARGING=false` - Never stop charging once started (default: false)
 
 #### Database Settings
 
@@ -146,7 +147,8 @@ Note: Manual automation trigger endpoint has been removed for security.
     "current": 8,
     "power": 1840
   },
-  "mode": "surplus"
+  "mode": "surplus",
+  "neverStopCharging": false
 }
 ```
 
@@ -181,7 +183,13 @@ Note: Manual automation trigger endpoint has been removed for security.
 
 ### Automation Modes
 - **Surplus Mode**: Charge only when solar production exceeds household consumption with intelligent battery SOC-based tolerances
+- **Minimum Mode**: Charge at 6A (1380W) when sufficient solar power is available
 - **Manual Mode**: Complete manual control without automation
+
+### Advanced Configuration
+- **Never Stop Charging**: When enabled, prevents charging interruption regardless of power availability
+  - In **Surplus Mode**: Continues charging even without sufficient surplus
+  - In **Minimum Mode**: Always charges at 6A regardless of solar power availability
 
 ### Technical Features
 - **REST API**: Comprehensive HTTP API for external integrations and monitoring
