@@ -6,23 +6,17 @@ import { SolisModule } from '../solis/solis.module';
 import { ZaptecModule } from '../zaptec/zaptec.module';
 import { LoggingService } from '../common/logging.service';
 import { TapoModule } from '../tapo/tapo.module';
-import { DailyAggregationService } from '../common/services/daily-aggregation.service';
-import { DailyAggregation, DailyAggregationSchema } from '../common/schemas/daily-aggregation.schema';
-import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
-import { HourlyAggregation, HourlyAggregationSchema } from '../common/schemas/hourly-aggregation.schema';
+import { ChartModule } from '../chart/chart.module';
 
 @Module({
   imports: [
-    SolisModule, 
-    ZaptecModule, 
+    SolisModule,
+    ZaptecModule,
     TapoModule,
-    MongooseModule.forFeature([
-      { name: DailyAggregation.name, schema: DailyAggregationSchema },
-      { name: HourlyAggregation.name, schema: HourlyAggregationSchema }
-    ])
+    ChartModule
   ],
-  providers: [HomeAutomationService, LoggingService, DailyAggregationService, HourlyAggregationService],
+  providers: [HomeAutomationService, LoggingService],
   controllers: [HomeAutomationController],
-  exports: [HomeAutomationService, DailyAggregationService, HourlyAggregationService]
+  exports: [HomeAutomationService]
 })
 export class HomeAutomationModule {}

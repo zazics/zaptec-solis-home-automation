@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Body, HttpException, HttpStatus, Inject, Query } from '@nestjs/common';
 import { HomeAutomationService } from './home-automation.service';
+import { ChartService } from '../chart/chart.service';
 import { DailyAggregationService } from '../common/services/daily-aggregation.service';
 import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
 import {
@@ -46,6 +47,9 @@ export class HomeAutomationController {
 
   @Inject(HourlyAggregationService)
   private readonly hourlyAggregationService: HourlyAggregationService;
+
+  @Inject(ChartService)
+  private readonly chartService: ChartService;
 
   constructor() {}
 
@@ -348,7 +352,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<SolarProductionChartData> {
     try {
-      return await this.homeAutomationService.getSolarProductionChart(period, date);
+      return await this.chartService.getSolarProductionChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -369,7 +373,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<GridExchangeChartData> {
     try {
-      return await this.homeAutomationService.getGridExchangeChart(period, date);
+      return await this.chartService.getGridExchangeChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -390,7 +394,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<HouseConsumptionChartData> {
     try {
-      return await this.homeAutomationService.getHouseConsumptionChart(period, date);
+      return await this.chartService.getHouseConsumptionChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -411,7 +415,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<ZaptecConsumptionChartData> {
     try {
-      return await this.homeAutomationService.getZaptecConsumptionChart(period, date);
+      return await this.chartService.getZaptecConsumptionChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -432,7 +436,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<DashboardChartData> {
     try {
-      return await this.homeAutomationService.getDashboardChart(period, date);
+      return await this.chartService.getDashboardChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -453,7 +457,7 @@ export class HomeAutomationController {
     @Query('date') date?: string
   ): Promise<BatteryChartData> {
     try {
-      return await this.homeAutomationService.getBatteryChart(period, date);
+      return await this.chartService.getBatteryChart(period, date);
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
