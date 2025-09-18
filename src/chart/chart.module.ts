@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ChartService } from './chart.service';
+import { ChartController } from './chart.controller';
 import { SolisModule } from '../solis/solis.module';
 import { ZaptecModule } from '../zaptec/zaptec.module';
 import { LoggingService } from '../common/logging.service';
@@ -26,6 +27,7 @@ import { HourlyAggregation, HourlyAggregationSchema } from '../common/schemas/ho
     ])
   ],
   providers: [ChartService, LoggingService, DailyAggregationService, HourlyAggregationService],
+  controllers: [ChartController],
   exports: [ChartService]
 })
 export class ChartModule {}
