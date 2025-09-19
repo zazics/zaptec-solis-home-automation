@@ -143,7 +143,7 @@ export class HomeAutomationService implements OnModuleInit {
     let batteryReservePower = 0;
     if (batterySoc < 30) {
       // Battery SOC < 30%: prioritize battery charging only
-      this.logger.debug(`Battery SOC=${batterySoc}% < 30%, prioritizing battery charging only`, this.context);
+      this.logger.log(`Battery SOC=${batterySoc}% < 30%, prioritizing battery charging only`, this.context);
       return 0; // No power available for EV charging
     } else if (batterySoc < 60) {
       // Battery SOC 30-60%: reserve some power for battery charging
@@ -151,7 +151,7 @@ export class HomeAutomationService implements OnModuleInit {
       const calculatedReserve = basePowerAvailable * batteryReservePercent;
       batteryReservePower = Math.min(calculatedReserve, 300); // Max 300W reserve for battery
       basePowerAvailable = Math.max(0, basePowerAvailable - batteryReservePower);
-      this.logger.debug(
+      this.logger.log(
         `Battery SOC=${batterySoc}% < 60%, reserving ${batteryReservePower}W (max 300W) for battery charging`,
         this.context
       );
@@ -165,7 +165,7 @@ export class HomeAutomationService implements OnModuleInit {
       const reductionPercent = Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT / 100;
       const reductionAmount = totalAvailablePower * reductionPercent;
       totalAvailablePower = Math.max(0, totalAvailablePower - reductionAmount);
-      this.logger.debug(
+      this.logger.log(
         `High consumption detected (${houseConsumption}W > ${Constants.POWER.INVERTER_MAX_POWER}W), ` +
           `reducing available power by ${Constants.AUTOMATION.HIGH_CONSUMPTION_REDUCTION_PERCENT}% (${reductionAmount}W)`,
         this.context
@@ -183,13 +183,13 @@ export class HomeAutomationService implements OnModuleInit {
         limitedPower = Math.max(0, limitedPower - reductionAmount);
       }
 
-      this.logger.debug(
+      this.logger.log(
         `Current charging (${currentChargingPower}W) exceeds solar production (${solarProduction}W), ` +
           `limiting to solar production: ${limitedPower}W`,
         this.context
       );
 
-      this.logger.debug(
+      this.logger.log(
         `Power calculation: Solar=${solarProduction}W, HouseWithoutZaptec=${houseConsumptionWithoutZaptec}W, ` +
           `Battery=${batterySoc}%, CurrentCharging=${currentChargingPower}W, ` +
           `BatteryReserve=${batteryReservePower}W, Available=${limitedPower}W (LIMITED)`,
@@ -199,7 +199,7 @@ export class HomeAutomationService implements OnModuleInit {
       return limitedPower;
     }
 
-    this.logger.debug(
+    this.logger.log(
       `Power calculation: Solar=${solarProduction}W, HouseWithoutZaptec=${houseConsumptionWithoutZaptec}W, ` +
         `Battery=${batterySoc}%, CurrentCharging=${currentChargingPower}W, ` +
         `BatteryReserve=${batteryReservePower}W, Available=${totalAvailablePower}W`,
