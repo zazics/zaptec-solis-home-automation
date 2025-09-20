@@ -404,10 +404,11 @@ export class ZaptecService implements OnModuleInit {
         if (!this.insufficientPowerFirstDetected) {
           this.insufficientPowerFirstDetected = now;
 
-          // Immediately reduce to minimum charging (6A) on first detection
-          await this.setMaxCurrent(6);
+          // Immediately reduce to minimum charging + boost on first detection
+          const minimumCurrentWithBoost = Math.min(20, minCurrent + boostLevel);
+          await this.setMaxCurrent(minimumCurrentWithBoost);
           this.logger.log(
-            `Insufficient power detected (${availablePower}W < ${minPowerWithTolerance}W), reduced to minimum charging (6A), waiting for next verification before stopping`,
+            `Insufficient power detected (${availablePower}W < ${minPowerWithTolerance}W), reduced to minimum charging (${minimumCurrentWithBoost}A = 6A + ${boostLevel}A boost), waiting for next verification before stopping`,
             this.context
           );
         } else {
@@ -436,22 +437,18 @@ export class ZaptecService implements OnModuleInit {
         );
       }
     } else if (availablePower < minPowerWithTolerance && neverStopCharging) {
-      // Not enough power but neverStopCharging is enabled - keep charging at minimum
-      if (currentStatus.charging) {
-        await this.setMaxCurrent(6);
-        this.logger.log(
-          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W) but neverStopCharging enabled, continuing at 6A`,
-          this.context
-        );
-      } else {
-        // Start charging at minimum current
-        await this.setMaxCurrent(6);
+      // Not enough power but neverStopCharging is enabled - keep charging at minimum + boost
+      const minimumCurrentWithBoost = Math.min(20, minCurrent + boostLevel); // Apply boost to minimum current too
+      await this.setMaxCurrent(minimumCurrentWithBoost);
+
+      if (!currentStatus.charging) {
         await this.setChargingEnabled(true);
-        this.logger.log(
-          `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W) but neverStopCharging enabled, starting charging at 6A`,
-          this.context
-        );
       }
+
+      this.logger.log(
+        `Insufficient power (${availablePower}W < ${minPowerWithTolerance}W) but neverStopCharging enabled, ${currentStatus.charging ? 'continuing' : 'starting charging'} at ${minimumCurrentWithBoost}A (6A + ${boostLevel}A boost)`,
+        this.context
+      );
     } else {
       // Reset insufficient power detection since power is now sufficient
       if (this.insufficientPowerFirstDetected) {
