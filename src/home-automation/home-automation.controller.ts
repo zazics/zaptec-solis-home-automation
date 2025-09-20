@@ -102,6 +102,10 @@ export class HomeAutomationController {
         throw new HttpException('mode must be one of: surplus, manual, minimum', HttpStatus.BAD_REQUEST);
       }
 
+      if (config.boostLevel !== undefined && (config.boostLevel < 0 || config.boostLevel > 10)) {
+        throw new HttpException('boostLevel must be between 0 and 10', HttpStatus.BAD_REQUEST);
+      }
+
       const updatedConfig = await this.homeAutomationService.updateConfig(config);
 
       return {

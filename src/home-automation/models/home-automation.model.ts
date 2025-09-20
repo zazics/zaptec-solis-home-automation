@@ -18,6 +18,7 @@ export interface AutomationConfig {
   maxChargingPower: number; // Maximum charging power (W)
   priorityLoadReserve: number; // Power to reserve for priority loads (W)
   neverStopCharging: boolean; // Never stop charging once started (overrides power thresholds)
+  boostLevel: number; // Boost charging current by this many amps (0-10A, capped at 20A total)
 }
 
 /**

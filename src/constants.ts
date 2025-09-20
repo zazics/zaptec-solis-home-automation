@@ -112,6 +112,11 @@ export class Constants {
       return process.env.NEVER_STOP_CHARGING === 'true';
     },
 
+    get BOOST_LEVEL(): number {
+      const boost = _.toNumber(process.env.BOOST_LEVEL) || 0;
+      return Math.max(0, Math.min(10, boost)); // Limit between 0 and 10A
+    },
+
     get HIGH_CONSUMPTION_REDUCTION_PERCENT(): number {
       return _.toNumber(process.env.HIGH_CONSUMPTION_REDUCTION_PERCENT) || 2;
     }

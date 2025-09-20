@@ -65,7 +65,8 @@ export class HomeAutomationService implements OnModuleInit {
       mode: Constants.AUTOMATION.MODE,
       maxChargingPower: Constants.AUTOMATION.MAX_CHARGING_POWER,
       priorityLoadReserve: Constants.AUTOMATION.PRIORITY_LOAD_RESERVE,
-      neverStopCharging: Constants.AUTOMATION.NEVER_STOP_CHARGING
+      neverStopCharging: Constants.AUTOMATION.NEVER_STOP_CHARGING,
+      boostLevel: Constants.AUTOMATION.BOOST_LEVEL
     };
 
     this.logger.log(`Home automation service initialized with config ${JSON.stringify(this.config)}`, this.context);
@@ -249,7 +250,10 @@ export class HomeAutomationService implements OnModuleInit {
         `Surplus mode: Processing ${chargingPower}W available for charging (neverStopCharging: ${this.config.neverStopCharging})`,
         this.context
       );
-      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc, this.config.neverStopCharging);
+      await this.zaptecService.optimizeCharging(chargingPower, solisData.battery.soc, {
+        neverStopCharging: this.config.neverStopCharging,
+        boostLevel: this.config.boostLevel
+      });
     }
     // Note: No need to handle vehicle disconnection - Zaptec charger automatically stops charging
   }

@@ -331,7 +331,11 @@ export class ZaptecService implements OnModuleInit {
   /**
    * Configures optimal charging parameters based on available power and battery level
    */
-  public async optimizeCharging(availablePower: number, batterySoc?: number, neverStopCharging?: boolean): Promise<void> {
+  public async optimizeCharging(availablePower: number, batterySoc?: number, config?: { neverStopCharging?: boolean; boostLevel?: number }): Promise<void> {
+    // Extract config values with defaults
+    const neverStopCharging = config?.neverStopCharging || false;
+    const boostLevel = config?.boostLevel || 0;
+
     // Typical voltage in Europe (230V single-phase)
     const voltage = 230;
     const minCurrent = 6;
@@ -369,9 +373,20 @@ export class ZaptecService implements OnModuleInit {
     // Limit current between 6A (minimum for charging) and calculated max from solar panels
     const maxCurrentFromSolar = Math.floor(this.maxSolarPowerWatts / voltage);
     const maxCurrent = Math.min(20, maxCurrentFromSolar); // Never exceed 20A or solar panel capacity (20A to not overpass inverter max power)
-    const optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
+    let optimizedCurrent = Math.max(minCurrent, Math.min(maxCurrent, maxPossibleCurrent));
 
-    this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A`, this.context);
+    // Apply boost level if configured (add to calculated current, capped at 20A)
+    if (boostLevel > 0) {
+      const boostedCurrent = optimizedCurrent + boostLevel;
+      const finalCurrent = Math.min(20, boostedCurrent); // Never exceed 20A total
+      this.logger.log(
+        `Applying boost: ${optimizedCurrent}A + ${boostLevel}A boost = ${boostedCurrent}A (capped at ${finalCurrent}A)`,
+        this.context
+      );
+      optimizedCurrent = finalCurrent;
+    }
+
+    this.logger.log(`Optimizing charging: ${availablePower}W available, setting to ${optimizedCurrent}A (boost: ${boostLevel}A)`, this.context);
 
     // Use cached status to avoid redundant API calls
     const currentStatus = this.cachedStatus;
