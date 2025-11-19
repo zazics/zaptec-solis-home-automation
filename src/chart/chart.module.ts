@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { ChartService } from './chart.service';
 import { ChartController } from './chart.controller';
 import { SolisModule } from '../solis/solis.module';
@@ -7,8 +6,6 @@ import { ZaptecModule } from '../zaptec/zaptec.module';
 import { LoggingService } from '../common/logging.service';
 import { DailyAggregationService } from '../common/services/daily-aggregation.service';
 import { HourlyAggregationService } from '../common/services/hourly-aggregation.service';
-import { DailyAggregation, DailyAggregationSchema } from '../common/schemas/daily-aggregation.schema';
-import { HourlyAggregation, HourlyAggregationSchema } from '../common/schemas/hourly-aggregation.schema';
 
 /**
  * Chart module providing chart data generation services
@@ -20,11 +17,7 @@ import { HourlyAggregation, HourlyAggregationSchema } from '../common/schemas/ho
 @Module({
   imports: [
     SolisModule,
-    ZaptecModule,
-    MongooseModule.forFeature([
-      { name: DailyAggregation.name, schema: DailyAggregationSchema },
-      { name: HourlyAggregation.name, schema: HourlyAggregationSchema }
-    ])
+    ZaptecModule
   ],
   providers: [ChartService, LoggingService, DailyAggregationService, HourlyAggregationService],
   controllers: [ChartController],

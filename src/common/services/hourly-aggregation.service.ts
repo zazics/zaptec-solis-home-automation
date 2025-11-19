@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { HourlyAggregation, HourlyAggregationDocument } from '../schemas/hourly-aggregation.schema';
+import { HourlyAggregation } from '../schemas/hourly-aggregation.schema';
 import { SolisDataService } from '../../solis/solis-data.service';
 import { ZaptecDataService } from '../../zaptec/zaptec-data.service';
 import { SolisData } from '../../solis/schemas/solis-data.schema';
 import { ZaptecData } from '../../zaptec/schemas/zaptec-data.schema';
+import { IHourlyAggregationDatabase } from '../database/interfaces/hourly-aggregation-database.interface';
+import { DATABASE_TOKENS } from '../database/database.constants';
 
 // Interfaces for hourly aggregation results
 interface HourlySolarProductionAggregation {
@@ -59,8 +59,8 @@ export class HourlyAggregationService {
   private readonly logger = new Logger(HourlyAggregationService.name);
 
   constructor(
-    @InjectModel(HourlyAggregation.name)
-    private readonly hourlyAggregationModel: Model<HourlyAggregationDocument>,
+    @Inject(DATABASE_TOKENS.HOURLY_AGGREGATION_DATABASE)
+    private readonly hourlyAggregationDb: IHourlyAggregationDatabase,
     private readonly solisDataService: SolisDataService,
     private readonly zaptecDataService: ZaptecDataService
   ) {}
@@ -104,16 +104,11 @@ export class HourlyAggregationService {
 
     try {
       // Check if aggregation already exists
-      const existing = await this.hourlyAggregationModel
-        .findOne({
-          date: new Date(dateStr),
-          hour
-        })
-        .exec();
+      const existing = await this.hourlyAggregationDb.findOne(new Date(dateStr), hour);
 
       if (existing) {
         this.logger.debug(`Hourly aggregation already exists for ${dateStr} ${hour}:00, updating`);
-        await this.hourlyAggregationModel.deleteOne({ date: new Date(dateStr), hour }).exec();
+        await this.hourlyAggregationDb.deleteOne(new Date(dateStr), hour);
       }
 
       // Fetch data for this hour
@@ -132,8 +127,7 @@ export class HourlyAggregationService {
       const aggregationData = await this.computeHourlyAggregation(new Date(dateStr), hour, solisData, zaptecData);
 
       // Save to database
-      const aggregation = new this.hourlyAggregationModel(aggregationData);
-      await aggregation.save();
+      const aggregation = await this.hourlyAggregationDb.save(aggregationData);
 
       this.logger.log(
         `Successfully calculated hourly aggregation for ${dateStr} ${hour}:00: ${aggregationData.solarProduction.totalEnergyKwh.toFixed(2)} kWh solar`
@@ -380,15 +374,7 @@ export class HourlyAggregationService {
    * @returns {Promise<HourlyAggregation[]>} Array of hourly aggregations
    */
   public async getAggregatedData(startDate: Date, endDate: Date): Promise<HourlyAggregation[]> {
-    return await this.hourlyAggregationModel
-      .find({
-        date: {
-          $gte: startDate,
-          $lte: endDate
-        }
-      })
-      .sort({ date: 1, hour: 1 })
-      .exec();
+    return await this.hourlyAggregationDb.getAggregatedData(startDate, endDate);
   }
 
   /**
@@ -417,12 +403,7 @@ export class HourlyAggregationService {
 
         try {
           // Check if aggregation already exists for this hour
-          const existingAggregation = await this.hourlyAggregationModel
-            .findOne({
-              date: targetDate,
-              hour
-            })
-            .exec();
+          const existingAggregation = await this.hourlyAggregationDb.findOne(targetDate, hour);
 
           if (existingAggregation) {
             skipped++;

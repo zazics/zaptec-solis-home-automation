@@ -3,15 +3,15 @@
  * This service processes raw data into daily summaries for optimal chart performance
  */
 
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DailyAggregation, DailyAggregationDocument } from '../schemas/daily-aggregation.schema';
+import { DailyAggregation } from '../schemas/daily-aggregation.schema';
 import { SolisDataService } from '../../solis/solis-data.service';
 import { ZaptecDataService } from '../../zaptec/zaptec-data.service';
 import { SolisData } from '../../solis/schemas/solis-data.schema';
 import { ZaptecData } from '../../zaptec/schemas/zaptec-data.schema';
+import { IDailyAggregationDatabase } from '../database/interfaces/daily-aggregation-database.interface';
+import { DATABASE_TOKENS } from '../database/database.constants';
 
 // Interfaces for aggregation results
 interface SolarProductionAggregation {
@@ -64,8 +64,8 @@ export class DailyAggregationService {
   private readonly logger = new Logger(DailyAggregationService.name);
 
   constructor(
-    @InjectModel(DailyAggregation.name)
-    private readonly dailyAggregationModel: Model<DailyAggregationDocument>,
+    @Inject(DATABASE_TOKENS.DAILY_AGGREGATION_DATABASE)
+    private readonly dailyAggregationDb: IDailyAggregationDatabase,
     private readonly solisDataService: SolisDataService,
     private readonly zaptecDataService: ZaptecDataService
   ) {}
@@ -121,7 +121,7 @@ export class DailyAggregationService {
       const aggregation = await this.computeDailyAggregation(date, solisData, zaptecData);
 
       // Store or update in database
-      await this.dailyAggregationModel.findOneAndUpdate({ date: startDate }, aggregation, { upsert: true, new: true });
+      await this.dailyAggregationDb.findOneAndUpdate(startDate, aggregation);
 
       this.logger.log(
         `Successfully calculated aggregation for ${dateStr}: ${aggregation.solarProduction.totalEnergyKwh.toFixed(2)} kWh solar`
@@ -360,33 +360,14 @@ export class DailyAggregationService {
    * Get aggregated data for a date range
    */
   public async getAggregatedData(startDate: Date, endDate: Date): Promise<DailyAggregation[]> {
-    return await this.dailyAggregationModel
-      .find({
-        date: {
-          $gte: startDate,
-          $lte: endDate
-        }
-      })
-      .sort({ date: 1 })
-      .exec();
+    return await this.dailyAggregationDb.getAggregatedData(startDate, endDate);
   }
 
   /**
    * Get aggregated data for specific dates
    */
   public async getAggregatedDataForDates(dates: Date[]): Promise<DailyAggregation[]> {
-    const startDates = dates.map((date) => {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    });
-
-    return await this.dailyAggregationModel
-      .find({
-        date: { $in: startDates }
-      })
-      .sort({ date: 1 })
-      .exec();
+    return await this.dailyAggregationDb.getAggregatedDataForDates(dates);
   }
 
   /**
@@ -422,7 +403,7 @@ export class DailyAggregationService {
 
       try {
         // Check if aggregation already exists for this date
-        const existingAggregation = await this.dailyAggregationModel.findOne({ date: targetDate }).exec();
+        const existingAggregation = await this.dailyAggregationDb.findOne(targetDate);
 
         if (existingAggregation) {
           this.logger.debug(`Aggregation already exists for ${dateStr}, skipping`);

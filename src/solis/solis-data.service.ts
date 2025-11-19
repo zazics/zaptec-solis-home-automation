@@ -1,93 +1,45 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { SolisData, SolisDataDocument } from './schemas/solis-data.schema';
-import { LoggingService } from '../common/logging.service';
 import { SolisDataDTO } from './models/solis.model';
+import { ISolisDatabase } from '../common/database/interfaces/solis-database.interface';
+import { DATABASE_TOKENS } from '../common/database/database.constants';
 
 /**
- * Service for managing Solis data storage in MongoDB
+ * Service for managing Solis data storage (Database-agnostic version)
  * Handles saving, retrieving, and analyzing historical inverter data
+ * Uses dependency injection to support both MongoDB and CouchDB
  */
 @Injectable()
 export class SolisDataService {
-  private readonly context = SolisDataService.name;
-
-  @Inject(LoggingService) private readonly logger: LoggingService;
-
-  constructor(@InjectModel(SolisData.name) private solisDataModel: Model<SolisDataDocument>) {}
+  constructor(
+    @Inject(DATABASE_TOKENS.SOLIS_DATABASE) private readonly database: ISolisDatabase
+  ) {}
 
   /**
-   * Saves Solis inverter data to MongoDB
+   * Saves Solis inverter data to database
    * @param {SolisDataDTO} data - Complete inverter data from Solis service
-   * @returns {Promise<SolisDataDocument>} Saved document
+   * @returns {Promise<any>} Saved document
    */
-  public async saveData(data: SolisDataDTO): Promise<SolisDataDocument> {
-    try {
-      // Calculate additional metrics
-      const gridInjection = data.grid.activePower > 0 ? data.grid.activePower : 0;
-      const gridConsumption = data.grid.activePower < 0 ? Math.abs(data.grid.activePower) : 0;
-      const availableForCharging = Math.max(0, gridInjection - 500); // Reserve 500W
-
-      const solisData = new this.solisDataModel({
-        timestamp: data.timestamp,
-        statusCode: data.status.code,
-        statusText: data.status.text,
-        pv: data.pv,
-        ac: data.ac,
-        house: data.house,
-        grid: data.grid,
-        battery: data.battery,
-        availableForCharging,
-        gridInjection,
-        gridConsumption,
-      });
-
-      const savedData = await solisData.save();
-      this.logger.debug(`Saved Solis data: ${savedData._id}`, this.context);
-
-      return savedData;
-    } catch (error) {
-      this.logger.error('Failed to save Solis data', error, this.context);
-      throw error;
-    }
+  public async saveData(data: SolisDataDTO): Promise<any> {
+    return await this.database.saveData(data);
   }
 
   /**
    * Retrieves recent Solis data
    * @param {number} limit - Number of records to retrieve (default: 100)
-   * @returns {Promise<SolisDataDocument[]>} Array of recent data points
+   * @returns {Promise<any[]>} Array of recent data points
    */
-  public async getRecentData(limit: number = 100): Promise<SolisDataDocument[]> {
-    try {
-      return await this.solisDataModel.find().sort({ timestamp: -1 }).limit(limit).exec();
-    } catch (error) {
-      this.logger.error('Failed to retrieve recent data', error, this.context);
-      throw error;
-    }
+  public async getRecentData(limit: number = 100): Promise<any[]> {
+    return await this.database.getRecentData(limit);
   }
 
   /**
    * Retrieves Solis data within a date range
    * @param {Date} startDate - Start date for data retrieval
    * @param {Date} endDate - End date for data retrieval
-   * @returns {Promise<SolisDataDocument[]>} Array of data points in date range
+   * @returns {Promise<any[]>} Array of data points in date range
    */
-  public async getDataByDateRange(startDate: Date, endDate: Date): Promise<SolisDataDocument[]> {
-    try {
-      return await this.solisDataModel
-        .find({
-          timestamp: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-        })
-        .sort({ timestamp: 1 })
-        .exec();
-    } catch (error) {
-      this.logger.error('Failed to retrieve data by date range', error, this.context);
-      throw error;
-    }
+  public async getDataByDateRange(startDate: Date, endDate: Date): Promise<any[]> {
+    return await this.database.getDataByDateRange(startDate, endDate);
   }
 
   /**
@@ -96,57 +48,17 @@ export class SolisDataService {
    * @returns {Promise<any>} Daily energy statistics
    */
   public async getDailyStats(date: Date = new Date()): Promise<any> {
-    try {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const pipeline = [
-        {
-          $match: {
-            timestamp: {
-              $gte: startOfDay,
-              $lte: endOfDay,
-            },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            maxPvPower: { $max: '$pv.totalPowerDC' },
-            avgPvPower: { $avg: '$pv.totalPowerDC' },
-            maxAcPower: { $max: '$ac.totalPowerAC' },
-            avgAcPower: { $avg: '$ac.totalPowerAC' },
-            maxHouseConsumption: { $max: '$house.consumption' },
-            avgHouseConsumption: { $avg: '$house.consumption' },
-            maxGridInjection: { $max: '$gridInjection' },
-            avgGridInjection: { $avg: '$gridInjection' },
-            totalDataPoints: { $sum: 1 },
-            minBatterySoc: { $min: '$battery.soc' },
-            maxBatterySoc: { $max: '$battery.soc' },
-            avgBatterySoc: { $avg: '$battery.soc' },
-          },
-        },
-      ];
-
-      const result = await this.solisDataModel.aggregate(pipeline).exec();
-      return result[0] || {};
-    } catch (error) {
-      this.logger.error('Failed to calculate daily stats', error, this.context);
-      throw error;
-    }
+    return await this.database.getDailyStats(date);
   }
 
   /**
    * Alias for getDataByDateRange - retrieves Solis data within a time range
    * @param {Date} startDate - Start date for data retrieval
    * @param {Date} endDate - End date for data retrieval
-   * @returns {Promise<SolisDataDocument[]>} Array of data points in time range
+   * @returns {Promise<any[]>} Array of data points in time range
    */
-  public async getDataInTimeRange(startDate: Date, endDate: Date): Promise<SolisDataDocument[]> {
-    return this.getDataByDateRange(startDate, endDate);
+  public async getDataInTimeRange(startDate: Date, endDate: Date): Promise<any[]> {
+    return await this.database.getDataInTimeRange(startDate, endDate);
   }
 
   /**
@@ -155,19 +67,6 @@ export class SolisDataService {
    * @returns {Promise<number>} Number of deleted records
    */
   public async cleanupOldData(retentionDays: number = 90): Promise<number> {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-
-      const result = await this.solisDataModel.deleteMany({
-        timestamp: { $lt: cutoffDate },
-      });
-
-      this.logger.log(`Cleaned up ${result.deletedCount} old records older than ${retentionDays} days`, this.context);
-      return result.deletedCount;
-    } catch (error) {
-      this.logger.error('Failed to cleanup old data', error, this.context);
-      throw error;
-    }
+    return await this.database.cleanupOldData(retentionDays);
   }
 }
