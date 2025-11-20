@@ -50,21 +50,30 @@ docker run -d \
 
 git clone https://github.com/zazics/zaptec-solis-home-automation.git
 cd zaptec-solis-home-automation
-npm i
 
 # Configure CouchDB databases
 
 # Rendre le script exécutable
+
 chmod +x scripts/setup-couchdb.sh
 
 # Exécuter le script de configuration
+
 ./scripts/setup-couchdb.sh
 
 # Vérifier la création des bases
-curl http://admin:admin@localhost:5984/_all_dbs
+
+curl http://admin:admin@localhost:5984/\_all_dbs
 
 # Configure environment for CouchDB
+
 cat > .env << EOF
 DATABASE_TYPE=couchdb
 COUCHDB_URL=http://admin:admin@localhost:5984
 EOF
+
+# Run project
+
+npm i
+npm run build
+pm2 start ecosystem.config.js --env production
