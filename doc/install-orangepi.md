@@ -74,6 +74,6 @@ EOF
 
 # Run project
 
-npm i
-npm run build
+npm ci --omit=dev
+!!! build locally on Windows and copy "dist" folder !!!
 pm2 start ecosystem.config.js --env production

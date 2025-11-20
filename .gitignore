@@ -71,4 +71,4 @@ coverage/
 .claude/settings.local.json
 CLAUDE.md
 zaptec-test.js
-ecosystem.config.js
+# ecosystem.config.js
