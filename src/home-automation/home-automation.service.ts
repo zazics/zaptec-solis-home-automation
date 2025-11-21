@@ -29,7 +29,7 @@ import { TapoService } from '../tapo/tapo.service';
  * - Real-time power flow monitoring and calculation
  * - Dynamic charging current adjustment based on available surplus
  * - Load balancing with configurable priority load reserves
- * - Historical data logging and analysis (when MongoDB enabled)
+ * - Historical data logging and analysis
  * - Automated cycles with configurable intervals
  * - Vehicle detection and charging session management
  * - Safety thresholds and maximum power limits
@@ -88,8 +88,8 @@ export class HomeAutomationService implements OnModuleInit {
       // Retrieve data from Solis inverter
       const solisData = await this.solisService.getAllData();
 
-      // Store Solis data in MongoDB for historical analysis (every cycle now)
-      await this.saveDataToMongoDB(solisData);
+      // Store Solis data in database for historical analysis (every cycle now)
+      await this.saveDataToDatabase(solisData);
       this.automationRunCounter++;
 
       // Check if it's night time based on sunrise/sunset - no solar production expected
@@ -111,7 +111,7 @@ export class HomeAutomationService implements OnModuleInit {
       const zaptecStatus = await this.zaptecService.getChargerStatus();
 
       // Save Zaptec data during daytime only
-      await this.saveZaptecDataToMongoDB(zaptecStatus);
+      await this.saveZaptecDataToDatabase(zaptecStatus);
 
       // Calculate available power (including current charging power)
       const availablePower = this.calculateAvailablePower(solisData, zaptecStatus);
@@ -315,34 +315,34 @@ export class HomeAutomationService implements OnModuleInit {
   }
 
   /**
-   * Saves data to MongoDB according to configured frequency
+   * Saves data to database according to configured frequency
    */
-  private async saveDataToMongoDB(solisData: SolisDataDTO): Promise<void> {
+  private async saveDataToDatabase(solisData: SolisDataDTO): Promise<void> {
     try {
       await this.solisDataService.saveData(solisData);
-      this.logger.debug(`Solis data saved to MongoDB (run ${this.automationRunCounter})`, this.context);
+      this.logger.debug(`Solis data saved to database (run ${this.automationRunCounter})`, this.context);
     } catch (mongoError) {
       this.logger.warn(
-        `Failed to save data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
+        `Failed to save data to database (attempt ${this.automationRunCounter}): ${mongoError.message}`,
         this.context
       );
-      // Continue with automation even if MongoDB save fails
+      // Continue with automation even if database save fails
     }
   }
 
   /**
-   * Saves Zaptec data to MongoDB (only during daytime)
+   * Saves Zaptec data to database (only during daytime)
    */
-  private async saveZaptecDataToMongoDB(zaptecStatus: ZaptecStatus): Promise<void> {
+  private async saveZaptecDataToDatabase(zaptecStatus: ZaptecStatus): Promise<void> {
     try {
       await this.zaptecDataService.saveData(zaptecStatus);
-      this.logger.debug(`Zaptec data saved to MongoDB (run ${this.automationRunCounter})`, this.context);
+      this.logger.debug(`Zaptec data saved to database (run ${this.automationRunCounter})`, this.context);
     } catch (mongoError) {
       this.logger.warn(
-        `Failed to save Zaptec data to MongoDB (attempt ${this.automationRunCounter}): ${mongoError.message}`,
+        `Failed to save Zaptec data to database (attempt ${this.automationRunCounter}): ${mongoError.message}`,
         this.context
       );
-      // Continue with automation even if MongoDB save fails
+      // Continue with automation even if database save fails
     }
   }
 

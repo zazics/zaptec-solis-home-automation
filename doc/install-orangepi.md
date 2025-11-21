@@ -72,8 +72,18 @@ DATABASE_TYPE=couchdb
 COUCHDB_URL=http://admin:admin@localhost:5984
 EOF
 
-# Run project
+# Deploy compiled artifacts Via GitHub Actions
 
-npm ci --omit=dev
-!!! build locally on Windows and copy "dist" folder !!!
+1. Pushez votre code sur GitHub
+2. GitHub Actions compile automatiquement pour ARM32v7 (workflow: build-arm.yml)
+3. Téléchargez l'artifact 'arm-build.zip' depuis Actions → Build for ARM → Artifacts
+4. Décompressez et copiez les fichiers sur l'Orange Pi:
+
+```bash
+# Depuis Windows (après avoir décompressé arm-build.zip)
+scp -r dist node_modules package.json root@192.168.0.61:/root/zaptec-solis-home-automation/
+```
+
+# Start application
+
 pm2 start ecosystem.config.js --env production
