@@ -38,6 +38,7 @@ EOF
 
 docker run -d \
  --name couchdb \
+ --restart=unless-stopped \
  -p 5984:5984 \
  -e COUCHDB_USER=admin \
  -e COUCHDB_PASSWORD=admin \
@@ -45,6 +46,9 @@ docker run -d \
  -v ~/couchdb-config:/opt/couchdb/etc/local.d \
  --memory=256m \
  treehouses/rpi-couchdb:2.3.1
+
+# IMPORTANT: Le flag --restart=unless-stopped garantit que CouchDB redemarrera automatiquement
+# apres un reboot de l'OrangePi
 
 # Install Project
 

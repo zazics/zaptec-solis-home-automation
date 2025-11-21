@@ -22,6 +22,8 @@ module.exports = {
       time: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
+      wait_ready: true,
+      listen_timeout: 10000, // Attend 10s que l'app soit prête
       max_restarts: 10,
       min_uptime: '10s',
       restart_delay: 5000,
