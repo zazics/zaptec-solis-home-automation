@@ -1,0 +1,40 @@
+name: Deploy to IOT Device
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '23'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build TypeScript
+      run: npm run build
+
+    - name: Deploy to IOT
+      env:
+        IOT_HOST: ${{ secrets.IOT_HOST }}
+        IOT_USER: ${{ secrets.IOT_USER }}
+        IOT_SSH_KEY: ${{ secrets.IOT_SSH_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$IOT_SSH_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H $IOT_HOST >> ~/.ssh/known_hosts
+
+        rsync -avz --exclude 'node_modules' dist/ $IOT_USER@$IOT_HOST:/root/zaptec-solis-home-automation/dist/
+        rsync -avz node_modules/ $IOT_USER@$IOT_HOST:/root/zaptec-solis-home-automation/node_modules/
+
+        ssh $IOT_USER@$IOT_HOST "cd /root/zaptec-solis-home-automation && pm2 restart zaptec-solis"

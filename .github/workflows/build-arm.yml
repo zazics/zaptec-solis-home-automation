@@ -1,0 +1,38 @@
+name: Build for ARM
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build for ARM
+      run: |
+        docker buildx build \
+          --platform linux/arm/v7 \
+          --output type=local,dest=./build-output \
+          -f Dockerfile.build \
+          .
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: arm-build
+        path: |
+          build-output/dist
+          build-output/node_modules
+        retention-days: 7
