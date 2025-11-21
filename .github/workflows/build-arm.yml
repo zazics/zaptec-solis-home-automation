@@ -24,15 +24,28 @@ jobs:
       run: |
         docker buildx build \
           --platform linux/arm/v7 \
-          --output type=local,dest=./build-output \
+          --load \
+          -t zaptec-solis-arm \
           -f Dockerfile.build \
           .
+
+    - name: Extract build artifacts from Docker image
+      run: |
+        # Créer un conteneur temporaire
+        docker create --name temp-container zaptec-solis-arm
+
+        # Extraire dist et node_modules
+        docker cp temp-container:/app/dist ./dist
+        docker cp temp-container:/app/node_modules ./node_modules
+
+        # Nettoyer
+        docker rm temp-container
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: arm-build
         path: |
-          build-output/dist
-          build-output/node_modules
+          dist
+          node_modules
         retention-days: 7
