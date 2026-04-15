@@ -2,9 +2,18 @@
 
 sudo usermod -a -G dialout $USER
 
+sudo apt install -y curl
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+source ~/.bashrc
+nvm --version
+
+nvm install 23
+nvm use 23
+nvm alias default 23
+
 2. Install Mongo in Docker
-   sudo mkdir -p /home/dietpi/mongodb-data
-   docker run -d --name solis-mongodb --restart unless-stopped -p 27017:27017 -v /home/dietpi/mongodb-data:/data/db -e MONGO_INITDB_DATABASE=solis-automation mongo:3.6
+   SEE OTHER INSTALL MONGODB
 
 3. PM2
    sudo npm install -g pm2

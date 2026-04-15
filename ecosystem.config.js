@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'zaptec-solis-automation',
       script: 'dist/main.js',
-      cwd: '/root/zaptec-solis-home-automation',
+      cwd: '/home/dietpi/zaptec-solis-home-automation',
       instances: 1,
       exec_mode: 'fork',
       watch: false,

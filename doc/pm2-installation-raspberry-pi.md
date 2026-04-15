@@ -7,6 +7,7 @@ This guide provides step-by-step instructions for installing and configuring PM2
 PM2 is a production process manager for Node.js applications with built-in load balancer. It allows you to keep applications alive forever, reload them without downtime, and facilitate common system admin tasks.
 
 ### Key Features:
+
 - **Process Management**: Keep your app alive forever
 - **Auto Restart**: Restart application on crashes
 - **Log Management**: Centralized logging with log rotation
@@ -38,7 +39,7 @@ Create a PM2 ecosystem file for your application:
 
 ```bash
 # Navigate to your project directory
-cd /home/pi/zaptec-solis-home-automation
+cd /home/dietpi/zaptec-solis-home-automation
 
 # Create ecosystem configuration file
 nano ecosystem.config.js
@@ -48,34 +49,36 @@ Add the following configuration:
 
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'zaptec-solis-automation',
-    script: 'dist/main.js',
-    cwd: '/home/pi/zaptec-solis-home-automation',
-    instances: 1,
-    exec_mode: 'fork',
-    watch: false,
-    max_memory_restart: '500M',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    error_file: './logs/pm2-error.log',
-    out_file: './logs/pm2-out.log',
-    log_file: './logs/pm2-combined.log',
-    time: true,
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    merge_logs: true,
-    max_restarts: 10,
-    min_uptime: '10s',
-    restart_delay: 5000,
-    autorestart: true,
-    kill_timeout: 5000
-  }]
+  apps: [
+    {
+      name: 'zaptec-solis-automation',
+      script: 'dist/main.js',
+      cwd: '/home/dietpi/zaptec-solis-home-automation',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '500M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      error_file: './logs/pm2-error.log',
+      out_file: './logs/pm2-out.log',
+      log_file: './logs/pm2-combined.log',
+      time: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 5000,
+      autorestart: true,
+      kill_timeout: 5000
+    }
+  ]
 };
 ```
 
@@ -260,7 +263,7 @@ LOG_FILE="/home/pi/zaptec-solis-home-automation/logs/health-check.log"
 # Check if process is running
 if pm2 status | grep -q "$APP_NAME.*online"; then
     echo "$(date): $APP_NAME is running" >> $LOG_FILE
-    
+
     # Optional: Check HTTP endpoint
     if curl -f http://localhost:3000/automation/status > /dev/null 2>&1; then
         echo "$(date): $APP_NAME HTTP endpoint is responsive" >> $LOG_FILE
@@ -306,41 +309,45 @@ df -h
 ### Common Issues
 
 1. **Application won't start**
+
    ```bash
    # Check logs for errors
    pm2 logs zaptec-solis-automation --err
-   
+
    # Check if port is available
    sudo netstat -tlnp | grep :3000
-   
+
    # Verify Node.js version
    node --version
    ```
 
 2. **High memory usage**
+
    ```bash
    # Check memory consumption
    pm2 show zaptec-solis-automation
-   
+
    # Reduce memory limit in ecosystem.config.js
    max_memory_restart: '256M'
    ```
 
 3. **Auto-start not working**
+
    ```bash
    # Regenerate startup script
    pm2 unstartup
    pm2 startup
-   
+
    # Re-save process list
    pm2 save
    ```
 
 4. **Permission issues**
+
    ```bash
    # Fix ownership
    sudo chown -R pi:pi /home/pi/zaptec-solis-home-automation
-   
+
    # Fix permissions
    chmod 755 dist/main.js
    ```
