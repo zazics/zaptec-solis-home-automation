@@ -120,7 +120,7 @@ export class HomeAutomationService implements OnModuleInit {
       await this.executeAutomationLogic(availablePower, solisData, zaptecStatus);
 
       this.lastAutomationRun = new Date();
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Automation cycle failed', error, this.context);
     }
   }
@@ -308,7 +308,7 @@ export class HomeAutomationService implements OnModuleInit {
           await this.zaptecService.setChargingEnabled(false);
           this.logger.log('Stopped charging due to automation being disabled', this.context);
         }
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error('Failed to stop charging when disabling automation', error, this.context);
       }
     }
@@ -321,7 +321,7 @@ export class HomeAutomationService implements OnModuleInit {
     try {
       await this.solisDataService.saveData(solisData);
       this.logger.debug(`Solis data saved to database (run ${this.automationRunCounter})`, this.context);
-    } catch (mongoError) {
+    } catch (mongoError: any) {
       this.logger.warn(
         `Failed to save data to database (attempt ${this.automationRunCounter}): ${mongoError.message}`,
         this.context
@@ -337,7 +337,7 @@ export class HomeAutomationService implements OnModuleInit {
     try {
       await this.zaptecDataService.saveData(zaptecStatus);
       this.logger.debug(`Zaptec data saved to database (run ${this.automationRunCounter})`, this.context);
-    } catch (mongoError) {
+    } catch (mongoError: any) {
       this.logger.warn(
         `Failed to save Zaptec data to database (attempt ${this.automationRunCounter}): ${mongoError.message}`,
         this.context
@@ -364,7 +364,7 @@ export class HomeAutomationService implements OnModuleInit {
       const realTimeData = await this.solisService.getAllData();
       this.logger.debug('Real-time Solis data retrieved successfully', this.context);
       return realTimeData;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to retrieve real-time Solis data from COM port', error, this.context);
       throw error;
     }

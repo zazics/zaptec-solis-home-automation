@@ -89,7 +89,7 @@ export class LoggingService {
   /**
    * Log error message
    */
-  public error(message: string, error?: Error | string, context?: string): void {
+  public error(message: string, error?: Error | string | unknown, context?: string): void {
     let fullMessage = message;
     if (error instanceof Error) {
       fullMessage = `${message}: ${error.message}\n${error.stack}`;
@@ -123,7 +123,7 @@ export class LoggingService {
       const now = Date.now();
       const maxAge = 5 * 24 * 60 * 60 * 1000; // 5 days in milliseconds
 
-      files.forEach(file => {
+      files.forEach((file) => {
         const filePath = path.join(this.logDir, file);
         const stats = fs.statSync(filePath);
 
